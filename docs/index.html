@@ -1,47 +1,204 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
     <title>La Ferme de la Cour - Résumés</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
+        :root {
+            --primary-color: #5D4037;
+            --secondary-color: #8D6E63;
+            --accent-color: #A1887F;
+            --text-color: #3E2723;
+            --background-color: #EFEBE9;
+            --card-background: #fff;
+            --shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
         body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1000px;
             margin: 0 auto;
             padding: 20px;
         }
-        h1, h2 {
-            color: #2c3e50;
+        
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            border-radius: 0 0 10px 10px;
+            box-shadow: var(--shadow);
         }
-        .button {
+        
+        header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+        }
+        
+        header p {
+            margin: 5px 0 0;
+            font-style: italic;
+        }
+        
+        .main-content {
+            margin-top: 30px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+        }
+        
+        .summary-card {
+            background: var(--card-background);
+            border-radius: 10px;
+            box-shadow: var(--shadow);
+            padding: 25px;
+            width: 100%;
+            max-width: 400px;
+            transition: transform 0.3s ease;
+        }
+        
+        .summary-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card-header {
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .card-header h2 {
+            margin: 0;
+            color: var(--primary-color);
+        }
+        
+        .card-content {
+            margin-bottom: 20px;
+        }
+        
+        .cta-button {
             display: inline-block;
-            padding: 10px 20px;
-            margin: 10px;
-            background-color: #3498db;
+            background-color: var(--primary-color);
             color: white;
             text-decoration: none;
+            padding: 12px 24px;
             border-radius: 5px;
             font-weight: bold;
+            transition: background-color 0.3s ease;
+            width: 100%;
+            text-align: center;
+            box-sizing: border-box;
         }
-        .button:hover {
-            background-color: #2980b9;
+        
+        .cta-button:hover {
+            background-color: var(--secondary-color);
+        }
+        
+        .archives {
+            margin-top: 40px;
+            background: var(--card-background);
+            border-radius: 10px;
+            box-shadow: var(--shadow);
+            padding: 25px;
+        }
+        
+        .archives h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 10px;
+        }
+        
+        .archive-links {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .archive-link {
+            display: inline-block;
+            background-color: var(--accent-color);
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+            min-width: 200px;
+            text-align: center;
+        }
+        
+        .archive-link:hover {
+            background-color: var(--secondary-color);
+        }
+        
+        footer {
+            margin-top: 40px;
+            text-align: center;
+            padding: 20px;
+            color: var(--accent-color);
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 768px) {
+            .summary-card {
+                max-width: 100%;
+            }
         }
     </style>
 </head>
 <body>
-    <h1>La Ferme de la Cour - Résumés</h1>
-    <p>Dernière mise à jour: 2025-04-25</p>
+    <header>
+        <div class="container">
+            <h1>La Ferme de la Cour</h1>
+            <p>Résumés des réservations - Mis à jour le 25/04/2025</p>
+        </div>
+    </header>
     
-    <div>
-        <a href="daily.html" class="button">Résumé Journalier</a>
-        <a href="weekly.html" class="button">Résumé Hebdomadaire</a>
+    <div class="container">
+        <div class="main-content">
+            <div class="summary-card">
+                <div class="card-header">
+                    <h2>Résumé Journalier</h2>
+                </div>
+                <div class="card-content">
+                    <p>Consultez le résumé des réservations pour aujourd'hui, y compris les arrivées, départs et séjours en cours.</p>
+                </div>
+                <a href="daily.html" class="cta-button">Voir le résumé journalier</a>
+            </div>
+            
+            <div class="summary-card">
+                <div class="card-header">
+                    <h2>Résumé Hebdomadaire</h2>
+                </div>
+                <div class="card-content">
+                    <p>Consultez le résumé des réservations pour la semaine, avec les statistiques d'occupation et les revenus estimés.</p>
+                </div>
+                <a href="weekly.html" class="cta-button">Voir le résumé hebdomadaire</a>
+            </div>
+        </div>
+        
+        <div class="archives">
+            <h2>Archives</h2>
+            <div class="archive-links">
+                <a href="history/" class="archive-link">Archives Journalières</a>
+                <a href="weekly/" class="archive-link">Archives Hebdomadaires</a>
+            </div>
+        </div>
+        
+        <footer>
+            <p>La Ferme de la Cour - Système de suivi des réservations</p>
+        </footer>
     </div>
-    
-    <h2>Archives</h2>
-    <p>
-        <a href="history/">Archives Journalières</a> | 
-        <a href="weekly/">Archives Hebdomadaires</a>
-    </p>
 </body>
 </html>

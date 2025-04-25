@@ -1,285 +1,47 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html>
 <head>
+    <title>La Ferme de la Cour - Résumés</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>La Ferme de la Cour - Résumé Journalier</title>
-    <!-- Add flag-icon-css library -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/3.5.0/css/flag-icon.min.css">
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f5f5f5;
-            color: #333;
-        }
-        .container {
-            max-width: 900px;
+            font-family: Arial, sans-serif;
+            max-width: 800px;
             margin: 0 auto;
             padding: 20px;
         }
-        .header {
-            background-color: #698B69;
-            color: white;
-            padding: 20px;
-            text-align: center;
-            border-radius: 10px 10px 0 0;
-            margin-bottom: 20px;
+        h1, h2 {
+            color: #2c3e50;
         }
-        .logo {
-            margin-bottom: 15px;
-        }
-        .logo img {
-            max-height: 100px;
-            max-width: 100%;
-        }
-        .date-display {
-            font-size: 28px;
-            margin-bottom: 10px;
-        }
-        .summary {
-            background-color: #f0f8ff;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            text-align: center;
-            font-size: 18px;
-        }
-        .no-booking {
-            background-color: #e8f5e9;
-            color: #2e7d32;
-            padding: 30px;
-            border-radius: 10px;
-            text-align: center;
-            font-size: 24px;
-        }
-        .booking-section {
-            margin-bottom: 25px;
-        }
-        .section-title {
-            background-color: #698B69;
-            color: white;
-            padding: 10px 15px;
-            border-radius: 5px;
-            font-size: 18px;
-        }
-        .room-card {
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            margin-bottom: 15px;
-            overflow: hidden;
-        }
-        .room-header {
-            padding: 12px 15px;
-            font-weight: bold;
-            font-size: 18px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .arrival {
-            background-color: #e3f2fd;
-            border-left: 5px solid #2196f3;
-        }
-        .departure {
-            background-color: #ffebee;
-            border-left: 5px solid #f44336;
-        }
-        .staying {
-            background-color: #e8f5e9;
-            border-left: 5px solid #4caf50;
-        }
-        .turnover {
-            background-color: #fff3e0;
-            border-left: 5px solid #ff9800;
-        }
-        .room-content {
-            padding: 15px;
-        }
-        .guest-info {
-            display: flex;
-            flex-wrap: wrap;
-            margin-bottom: 10px;
-        }
-        .info-group {
-            flex: 1;
-            min-width: 200px;
-            margin-bottom: 10px;
-        }
-        .info-label {
-            font-weight: bold;
-            color: #555;
-            margin-right: 5px;
-        }
-        .info-value {
-            color: #333;
-        }
-        .action-needed {
-            background-color: #fff8e1;
-            padding: 10px 15px;
-            margin-top: 10px;
-            border-radius: 5px;
-            font-weight: bold;
-            border-left: 5px solid #ffc107;
-        }
-        .notes {
-            background-color: #f9f9f9;
-            padding: 10px 15px;
-            margin-top: 10px;
-            border-radius: 5px;
-            font-style: italic;
-        }
-        .repeat-guest {
-            color: #7b1fa2;
-            font-weight: bold;
-        }
-        .badge {
+        .button {
             display: inline-block;
-            padding: 3px 8px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
+            padding: 10px 20px;
+            margin: 10px;
+            background-color: #3498db;
             color: white;
-        }
-        .badge-arrival {
-            background-color: #2196f3;
-        }
-        .badge-departure {
-            background-color: #f44336;
-        }
-        .badge-staying {
-            background-color: #4caf50;
-        }
-        .badge-turnover {
-            background-color: #ff9800;
-        }
-        .visit-count {
-            background-color: #e8eaf6;
-            padding: 8px 12px;
-            margin-top: 10px;
+            text-decoration: none;
             border-radius: 5px;
             font-weight: bold;
-            border-left: 5px solid #3f51b5;
         }
-        .first-visit {
-            background-color: #e0f7fa;
-            border-left: 5px solid #00bcd4;
-        }
-        .extension {
-            background-color: #e8f5e9;
-            border-left: 5px solid #43a047;
-        }
-        .footer {
-            text-align: center;
-            padding: 20px;
-            font-size: 14px;
-            color: #666;
-        }
-        /* Style for flag icons */
-        .flag-icon {
-            margin-right: 5px;
-        }
-        @media (max-width: 600px) {
-            .info-group {
-                min-width: 100%;
-            }
+        .button:hover {
+            background-color: #2980b9;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="logo"><img src="logo.png" alt="La Ferme de la Cour Logo"></div>
-            <div class="date-display">Vendredi 25 Avril 2025</div>
-            <div>La Ferme de la Cour</div>
-        </div>
+    <h1>La Ferme de la Cour - Résumés</h1>
+    <p>Dernière mise à jour: 2025-04-25</p>
     
-        <div class="summary">
-            <p>Aujourd'hui: 1 arrivée(s), 1 départ(s), 0 séjour(s) en cours</p>
-        </div>
-        
-            <div class="booking-section">
-                <h2 class="section-title">🛎️ Arrivées Aujourd'hui</h2>
-            
-    <div class="room-card">
-        <div class="room-header arrival">
-            <span>Chambre: Laurasie de la Cour</span>
-            <span class="badge badge-arrival">Arrivée</span>
-        </div>
-        <div class="room-content">
-            <div class="guest-info">
-                <div class="info-group">
-                    <div><span class="info-label">Nom:</span> <span class="info-value ">Philippe BLAISE</span></div>
-                    <div><span class="info-label">Nationalité:</span> <span class="info-value"><span class="flag-icon flag-icon-be"></span> Belgium</span></div>
-                    <div><span class="info-label">Téléphone:</span> <span class="info-value">+32 493 85 93 85</span></div>
-                    <div><span class="info-label">Email:</span> <span class="info-value">pblais.642745@guest.booking.com</span></div>
-                </div>
-                <div class="info-group">
-                    <div><span class="info-label">Arrivée:</span> <span class="info-value">25/04/2025</span></div>
-                    <div><span class="info-label">Départ:</span> <span class="info-value">27/04/2025</span></div>
-                    <div><span class="info-label">Nuits:</span> <span class="info-value">2.0</span></div>
-                </div>
-                <div class="info-group">
-                    <div><span class="info-label">Montant:</span> <span class="info-value">283.46 €</span></div>
-                    <div><span class="info-label">Référence:</span> <span class="info-value">U2504024009</span></div>
-                    <div><span class="info-label">Source:</span> <span class="info-value">Booking.com</span></div>
-                </div>
-            </div>
-            <div class="action-needed">Préparer la chambre "Laurasie de la Cour"</div>
-            
-            <div class="visit-count first-visit">Première visite</div>
-            <div class="notes">
-                Notes: 
-            </div>
-        </div>
+    <div>
+        <a href="daily.html" class="button">Résumé Journalier</a>
+        <a href="weekly.html" class="button">Résumé Hebdomadaire</a>
     </div>
     
-            </div>
-            
-            <div class="booking-section">
-                <h2 class="section-title">🚪 Départs Aujourd'hui</h2>
-            
-    <div class="room-card">
-        <div class="room-header departure">
-            <span>Chambre: Tibert de la Cour</span>
-            <span class="badge badge-departure">Départ</span>
-        </div>
-        <div class="room-content">
-            <div class="guest-info">
-                <div class="info-group">
-                    <div><span class="info-label">Nom:</span> <span class="info-value ">Marijn Verschelde</span></div>
-                    <div><span class="info-label">Nationalité:</span> <span class="info-value"><span class="flag-icon flag-icon-be"></span> Belgium</span></div>
-                    <div><span class="info-label">Téléphone:</span> <span class="info-value">32499 38 62 55</span></div>
-                    <div><span class="info-label">Email:</span> <span class="info-value">marijn.verschelde@gmail.com</span></div>
-                </div>
-                <div class="info-group">
-                    <div><span class="info-label">Arrivée:</span> <span class="info-value">23/04/2025</span></div>
-                    <div><span class="info-label">Départ:</span> <span class="info-value">25/04/2025</span></div>
-                    <div><span class="info-label">Nuits:</span> <span class="info-value">2.0</span></div>
-                </div>
-                <div class="info-group">
-                    <div><span class="info-label">Montant:</span> <span class="info-value">324.0 €</span></div>
-                    <div><span class="info-label">Référence:</span> <span class="info-value">M0005</span></div>
-                    <div><span class="info-label">Source:</span> <span class="info-value">Manual</span></div>
-                </div>
-            </div>
-            <div class="action-needed">C'est leur dernier jour chez nous</div>
-            
-            <div class="visit-count first-visit">Première visite</div>
-            <div class="notes">
-                Notes: repas table jeudi
-            </div>
-        </div>
-    </div>
-    
-            </div>
-            
-        <div class="footer">
-            <p>La Ferme de la Cour - Résumé journalier généré le 25/04/2025 13:53 par Juliette Maes</p>
-        </div>
-    </div>
+    <h2>Archives</h2>
+    <p>
+        <a href="history/">Archives Journalières</a> | 
+        <a href="weekly/">Archives Hebdomadaires</a>
+    </p>
 </body>
 </html>
-    
