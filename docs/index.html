@@ -13,9 +13,11 @@
             color: #333;
         }
         .container {
+            width: 100%;
             max-width: 1100px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 10px;
+            box-sizing: border-box;
         }
         header {
             background-color: #698B69;
@@ -32,12 +34,12 @@
             margin-bottom: 15px;
         }
         .logo {
-            max-width: 200px;
+            max-width: 180px;
             height: auto;
         }
         h1 {
             margin: 0;
-            font-size: 2.2em;
+            font-size: 2em;
         }
         .subtitle {
             font-style: italic;
@@ -47,7 +49,7 @@
         }
         .content {
             background-color: white;
-            padding: 30px;
+            padding: 20px;
             border-radius: 0 0 8px 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
@@ -75,16 +77,18 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 20px 30px;
+            padding: 15px 20px;
             background-color: #698B69;
             color: white;
             text-decoration: none;
             border-radius: 8px;
             font-weight: bold;
             transition: all 0.3s ease;
-            min-width: 200px;
+            width: 100%;
+            max-width: 200px;
             text-align: center;
             box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+            box-sizing: border-box;
         }
         .button:hover {
             background-color: #5a7b5a;
@@ -117,19 +121,21 @@
         }
         .button-text {
             font-size: 1.1em;
+            word-wrap: break-word;
         }
         .date-info {
-            font-size: 0.9em;
+            font-size: 0.85em;
             margin-top: 8px;
             opacity: 0.8;
+            word-wrap: break-word;
         }
         .futures-weeks-container {
             margin-top: 40px;
         }
         .archives {
-            margin-top: 50px;
-            padding-top: 30px;
-	    text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            text-align: center;
             border-top: 1px solid #e0e0e0;
         }
         .archives h2 {
@@ -139,7 +145,7 @@
         .archive-links {
             display: flex;
             justify-content: center;
-            gap: 40px;
+            gap: 20px;
             flex-wrap: wrap;
         }
         .archive-link {
@@ -156,22 +162,46 @@
             color: white;
         }
         footer {
-            margin-top: 40px;
+            margin-top: 30px;
             text-align: center;
             color: #777;
             font-size: 0.8em;
         }
         @media (max-width: 767px) {
+            .container {
+                padding: 5px;
+            }
+            .content {
+                padding: 15px;
+            }
             .buttons-container {
                 flex-direction: column;
                 align-items: center;
+                gap: 15px;
             }
             .button {
                 width: 100%;
+                max-width: 100%;
+                padding: 15px 10px;
             }
             .archive-links {
                 flex-direction: column;
                 align-items: center;
+                gap: 10px;
+            }
+            .archive-link {
+                width: 100%;
+                max-width: 250px;
+                box-sizing: border-box;
+            }
+            h1 {
+                font-size: 1.8em;
+            }
+            .subtitle {
+                font-size: 1em;
+            }
+            .section-title {
+                font-size: 1.3em;
             }
         }
     </style>
