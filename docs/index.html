@@ -13,7 +13,7 @@
             color: #333;
         }
         .container {
-            max-width: 900px;
+            max-width: 1100px;
             margin: 0 auto;
             padding: 20px;
         }
@@ -57,6 +57,13 @@
             font-size: 0.9em;
             text-align: center;
         }
+        .section-title {
+            color: #698B69;
+            text-align: center;
+            margin: 30px 0 20px 0;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
         .buttons-container {
             display: flex;
             justify-content: center;
@@ -84,6 +91,26 @@
             transform: translateY(-3px);
             box-shadow: 0 5px 15px rgba(0,0,0,0.15);
         }
+        .button-primary {
+            background-color: #698B69;
+        }
+        .button-future {
+            background-color: #5F9EA0;
+        }
+        .button-disabled {
+            background-color: #a0a0a0;
+            cursor: not-allowed;
+        }
+        .button-disabled:hover {
+            transform: none;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+        }
+        .not-available {
+            font-size: 0.8em;
+            margin-top: 5px;
+            font-style: italic;
+            opacity: 0.8;
+        }
         .button-icon {
             font-size: 2em;
             margin-bottom: 10px;
@@ -95,6 +122,9 @@
             font-size: 0.9em;
             margin-top: 8px;
             opacity: 0.8;
+        }
+        .futures-weeks-container {
+            margin-top: 40px;
         }
         .archives {
             margin-top: 50px;
@@ -109,6 +139,7 @@
             display: flex;
             justify-content: center;
             gap: 40px;
+            flex-wrap: wrap;
         }
         .archive-link {
             color: #698B69;
@@ -117,6 +148,7 @@
             border: 1px solid #698B69;
             border-radius: 5px;
             transition: all 0.2s ease;
+            margin-bottom: 10px;
         }
         .archive-link:hover {
             background-color: #698B69;
@@ -127,6 +159,19 @@
             text-align: center;
             color: #777;
             font-size: 0.8em;
+        }
+        @media (max-width: 767px) {
+            .buttons-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            .button {
+                width: 100%;
+            }
+            .archive-links {
+                flex-direction: column;
+                align-items: center;
+            }
         }
     </style>
 </head>
@@ -152,11 +197,40 @@
                     <div class="date-info">Aujourd'hui: 29/04/2025</div>
                 </a>
                 
-                <a href="weekly.html" class="button">
+                <a href="weekly.html" class="button button-primary">
                     <div class="button-icon">📊</div>
                     <div class="button-text">Résumé Hebdomadaire</div>
                     <div class="date-info">Semaine du 28/04/2025 au 04/05/2025</div>
                 </a>
+            </div>
+            
+            <h2 class="section-title">Aperçu des Prochaines Semaines</h2>
+            <div class="futures-weeks-container buttons-container">
+                
+            <a href="weekly/weekly_2025-04-28.html" class="button button-primary">
+                <div class="button-icon">📊</div>
+                <div class="button-text">Cette Semaine</div>
+                <div class="date-info">Du 28/04/2025 au 04/05/2025</div>
+            </a>
+            
+            <a href="weekly/weekly_2025-05-05.html" class="button button-future">
+                <div class="button-icon">🔮</div>
+                <div class="button-text">Semaine +1</div>
+                <div class="date-info">Du 05/05/2025 au 11/05/2025</div>
+            </a>
+            
+            <a href="weekly/weekly_2025-05-12.html" class="button button-future">
+                <div class="button-icon">🔮</div>
+                <div class="button-text">Semaine +2</div>
+                <div class="date-info">Du 12/05/2025 au 18/05/2025</div>
+            </a>
+            
+            <a href="weekly/weekly_2025-05-19.html" class="button button-future">
+                <div class="button-icon">🔮</div>
+                <div class="button-text">Semaine +3</div>
+                <div class="date-info">Du 19/05/2025 au 25/05/2025</div>
+            </a>
+            
             </div>
             
             <div class="archives">
