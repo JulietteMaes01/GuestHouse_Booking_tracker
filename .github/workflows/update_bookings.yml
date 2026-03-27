@@ -48,6 +48,11 @@ jobs:
           cd scripts
           python schedule_generator.py --no-git
 
+      - name: Generate analytics dashboard
+        run: |
+          cd scripts
+          python analytics.py
+
       - name: Commit and push changes
         run: |
           git config user.name  "github-actions[bot]"
