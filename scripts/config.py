@@ -34,8 +34,66 @@ ROOMS = [
 
 NATIONALITIES = [
     "Belgique", "France", "Pays-Bas", "Allemagne", "Luxembourg",
-    "Royaume-Uni", "Espagne", "Italie", "Suisse", "Autre",
+    "Royaume-Uni", "Espagne", "Italie", "Suisse", "Autriche",
+    "Portugal", "Irlande", "Danemark", "Suède", "Norvège",
+    "Pologne", "Hongrie", "Autre",
 ]
+
+# ── Phone country code → nationality (French) ─────────────────────────────────
+# Codes are tried longest-first to avoid e.g. 32 matching before 352.
+PHONE_CODE_TO_NATIONALITY = {
+    # 3-digit codes (must be checked before 2-digit)
+    "352": "Luxembourg",
+    "353": "Irlande",
+    "354": "Islande",
+    "358": "Finlande",
+    "370": "Lituanie",
+    "371": "Lettonie",
+    "372": "Estonie",
+    "380": "Ukraine",
+    "385": "Croatie",
+    "386": "Slovénie",
+    "420": "Tchéquie",
+    "421": "Slovaquie",
+    # 2-digit codes
+    "31":  "Pays-Bas",
+    "32":  "Belgique",
+    "33":  "France",
+    "34":  "Espagne",
+    "36":  "Hongrie",
+    "39":  "Italie",
+    "41":  "Suisse",
+    "43":  "Autriche",
+    "44":  "Royaume-Uni",
+    "45":  "Danemark",
+    "46":  "Suède",
+    "47":  "Norvège",
+    "48":  "Pologne",
+    "49":  "Allemagne",
+    "351": "Portugal",
+}
+
+# ── Normalize English → French (for fixing existing sheet data) ────────────────
+NATIONALITY_EN_TO_FR = {
+    "Belgium":        "Belgique",
+    "France":         "France",
+    "Netherlands":    "Pays-Bas",
+    "Germany":        "Allemagne",
+    "Luxembourg":     "Luxembourg",
+    "United Kingdom": "Royaume-Uni",
+    "UK":             "Royaume-Uni",
+    "Spain":          "Espagne",
+    "Italy":          "Italie",
+    "Switzerland":    "Suisse",
+    "Austria":        "Autriche",
+    "Portugal":       "Portugal",
+    "Ireland":        "Irlande",
+    "Denmark":        "Danemark",
+    "Sweden":         "Suède",
+    "Norway":         "Norvège",
+    "Poland":         "Pologne",
+    "Hungary":        "Hongrie",
+}
 
 OWNER_NAME = "Juliette Maes"
 

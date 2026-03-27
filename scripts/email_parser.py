@@ -40,7 +40,7 @@ def _save_processed_ids(ids: set) -> None:
         json.dump(sorted(ids), fh, indent=2)
 
 from auth import get_gmail_service, get_worksheet
-from config import ELLOHA_SENDER, ROOMS, COLUMNS
+from config import ELLOHA_SENDER, ROOMS, COLUMNS, PHONE_CODE_TO_NATIONALITY, NATIONALITY_EN_TO_FR
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(message)s")
 log = logging.getLogger(__name__)
@@ -215,6 +215,7 @@ def parse_email(subject: str, body: str, received_ts: int) -> dict | None:
     guest_name  = _parse_guest_name(body)
     phone       = _first_group(r"\*?\s*T[eé]l[eé]phone\s*:\s*(.+?)(?:\n|$)", body)
     guest_email = _first_group(r"\*?\s*E-mail\s*:\s*(.+?)(?:\n|$)", body)
+    nationality = _phone_to_nationality(phone)
 
     # ── For Modification: return only the fields that change ──────────────────
     if email_type == "Modification":
@@ -247,7 +248,7 @@ def parse_email(subject: str, body: str, received_ts: int) -> dict | None:
         "guest_name":        guest_name,
         "phone":             phone,
         "email":             guest_email,
-        "nationality":       "",
+        "nationality":       nationality,
         "nights":            nights,
         "cancellation_date": "",
         "modification_date": "",
@@ -262,6 +263,24 @@ def parse_email(subject: str, body: str, received_ts: int) -> dict | None:
 def _normalize_phone(phone) -> str:
     """Strip all non-digit characters. Accepts str or int."""
     return re.sub(r"\D", "", str(phone or ""))
+
+
+def _phone_to_nationality(phone) -> str:
+    """
+    Guess nationality (French name) from phone country code.
+    Handles +32…, 0032…, 32… formats.
+    Returns empty string if not recognised.
+    """
+    digits = _normalize_phone(phone)
+    # Remove leading 00 (international prefix without +)
+    if digits.startswith("00"):
+        digits = digits[2:]
+    # Try 3-digit codes first, then 2-digit
+    for length in (3, 2):
+        code = digits[:length]
+        if code in PHONE_CODE_TO_NATIONALITY:
+            return PHONE_CODE_TO_NATIONALITY[code]
+    return ""
 
 
 def detect_repeat_guest(new_row: dict, existing_records: list) -> tuple:
@@ -617,9 +636,59 @@ def fix_unknown_rows():
     log.info("fix_unknown_rows complete")
 
 
+def fix_nationalities():
+    """
+    One-off migration: normalise all nationality values in the sheet to French.
+    - Translates English values (Belgium → Belgique, etc.)
+    - Fills blank nationalities by guessing from the phone number country code.
+    Run once with:  python email_parser.py fix-nat
+    """
+    log.info("Fixing nationalities in sheet …")
+    worksheet = get_worksheet()
+    headers, existing_records, ref_to_rownum = load_sheet_with_row_numbers(worksheet)
+
+    if "nationality" not in headers or "phone" not in headers:
+        log.error("Sheet missing 'nationality' or 'phone' column — aborting")
+        return
+
+    nat_col = headers.index("nationality") + 1   # 1-indexed
+    batch   = []
+
+    for rec in existing_records:
+        ref     = str(rec.get("reference") or "").strip()
+        row_num = ref_to_rownum.get(ref)
+        if not row_num:
+            continue
+
+        current = str(rec.get("nationality") or "").strip()
+        phone   = rec.get("phone") or ""
+
+        # Translate English value if present
+        if current in NATIONALITY_EN_TO_FR:
+            new_nat = NATIONALITY_EN_TO_FR[current]
+        elif current in ("", "Unknown"):
+            # Try to guess from phone number
+            new_nat = _phone_to_nationality(phone)
+        else:
+            continue   # Already French or manual value — leave it
+
+        if new_nat and new_nat != current:
+            cell_a1 = gspread.utils.rowcol_to_a1(row_num, nat_col)
+            batch.append({"range": cell_a1, "values": [[new_nat]]})
+            log.info(f"  {ref:12s}  {current!r:20s} → {new_nat!r}")
+
+    if batch:
+        worksheet.batch_update(batch, value_input_option="RAW")
+        log.info(f"Updated {len(batch)} nationality cell(s)")
+    else:
+        log.info("Nothing to update")
+
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1 and sys.argv[1] == "fix":
         fix_unknown_rows()
+    elif len(sys.argv) > 1 and sys.argv[1] == "fix-nat":
+        fix_nationalities()
     else:
         run()

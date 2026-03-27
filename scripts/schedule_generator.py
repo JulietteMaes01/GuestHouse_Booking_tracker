@@ -7,9 +7,11 @@ Reads the Google Sheet, generates:
 Then commits and pushes both files to GitHub so GitHub Pages updates.
 
 Usage:
-    python schedule_generator.py
+    python schedule_generator.py           # generate + git push
+    python schedule_generator.py --no-git  # generate only (used by GitHub Actions)
 """
 import os
+import sys
 import shutil
 import subprocess
 import logging
@@ -457,7 +459,11 @@ def run():
         fh.write(weekly_html)
     log.info(f"Weekly HTML written → {weekly_path}")
 
-    push_to_github(today.strftime("%Y-%m-%d"))
+    no_git = "--no-git" in sys.argv
+    if no_git:
+        log.info("--no-git flag set — skipping git push (handled by GitHub Actions)")
+    else:
+        push_to_github(today.strftime("%Y-%m-%d"))
 
 
 if __name__ == "__main__":
