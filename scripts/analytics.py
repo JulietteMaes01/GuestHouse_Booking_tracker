@@ -19,7 +19,7 @@ warnings.filterwarnings("ignore")
 # ── local imports ────────────────────────────────────────────────────────────
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from auth import get_worksheet
-from config import DOCS_FOLDER, GITHUB_REPO_PATH, ROOMS
+from config import DOCS_FOLDER, GITHUB_REPO_PATH, ROOMS, COMMISSIONS
 
 # ── colour palette ───────────────────────────────────────────────────────────
 BROWN   = "#5D4037"
@@ -107,14 +107,19 @@ def load_data():
             nights = float(str(r.get("nights", 0)) or 0)
         except Exception:
             nights = (departure - arrival).days if departure else 0
+        source = str(r.get("booking_source", "")).strip() or "Unknown"
+        commission = COMMISSIONS.get(source, 0.0)
+        net_amount = round(amount * (1 - commission), 2)
         rows.append({
-            "source":    str(r.get("booking_source", "")).strip() or "Unknown",
-            "arrival":   arrival,
-            "departure": departure,
-            "booking_d": booking_d,
-            "rooms":     rooms_booked,
-            "amount":    amount,
-            "nights":    nights,
+            "source":     source,
+            "arrival":    arrival,
+            "departure":  departure,
+            "booking_d":  booking_d,
+            "rooms":      rooms_booked,
+            "amount":     amount,        # gross (what guest paid)
+            "net_amount": net_amount,    # after commission
+            "commission": commission,
+            "nights":     nights,
             "nationality": _norm_nat(r.get("nationality", "")),
             "repeat":    str(r.get("repeat_guest", "")).lower() in ("true", "1", "yes"),
             "status":    status,
@@ -211,7 +216,7 @@ def chart_revenue_month(rows):
     MONTH_FR = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
     revenue = defaultdict(float)
     for r in rows:
-        revenue[(r["arrival"].year, r["arrival"].month)] += r["amount"]
+        revenue[(r["arrival"].year, r["arrival"].month)] += r["net_amount"]
     years  = sorted({r["arrival"].year for r in rows})
     x      = np.arange(12)
     w      = 0.35 if len(years) > 1 else 0.5
@@ -225,7 +230,7 @@ def chart_revenue_month(rows):
                      labels=[f"{v/1000:.1f}k" if v >= 1000 else (f"{v:.0f}" if v else "") for v in vals])
     ax.set_xticks(x)
     ax.set_xticklabels(MONTH_FR)
-    ax.set_title("Revenus par mois (€)")
+    ax.set_title("Revenus nets par mois (€ après commission)")
     ax.set_ylabel("€")
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:,.0f} €"))
     ax.legend(frameon=False)
@@ -334,8 +339,8 @@ def chart_source_trend(rows):
 def chart_avg_revenue_per_room(rows):
     room_rev   = defaultdict(list)
     for r in rows:
-        if r["amount"] > 0 and len(r["rooms"]) > 0:
-            per_room = r["amount"] / len(r["rooms"])
+        if r["net_amount"] > 0 and len(r["rooms"]) > 0:
+            per_room = r["net_amount"] / len(r["rooms"])
             for rm in r["rooms"]:
                 room_rev[rm].append(per_room)
     short = {room: room.split(" ")[0] for room in ROOMS}
@@ -345,7 +350,7 @@ def chart_avg_revenue_per_room(rows):
                   color=ROOMS_COLORS, width=0.55, zorder=3)
     ax.bar_label(bars, padding=4, fontsize=11, fontweight="bold",
                  labels=[f"{v:.0f} €" for v in means])
-    ax.set_title("Revenu moyen par chambre (€)")
+    ax.set_title("Revenu moyen par chambre (€ net)")
     ax.set_ylabel("€")
     ax.grid(axis="y", color=LIGHT, zorder=0)
     ax.set_ylim(0, max(means) * 1.2)
@@ -355,7 +360,7 @@ def chart_avg_revenue_per_room(rows):
 def compute_kpis(rows):
     total     = len(rows)
     confirmed = sum(1 for r in rows if r["status"] == "Confirmed")
-    revenue   = sum(r["amount"] for r in rows)
+    revenue   = sum(r["net_amount"] for r in rows)
     avg_stay  = np.mean([r["nights"] for r in rows if r["nights"] > 0])
     repeat_rt = sum(1 for r in rows if r["repeat"]) / total * 100 if total else 0
     top_room  = Counter(rm for r in rows for rm in r["rooms"]).most_common(1)[0][0].split()[0]
@@ -365,7 +370,7 @@ def compute_kpis(rows):
     return [
         ("🏠", f"{total}", "Réservations totales"),
         ("✅", f"{confirmed}", "Confirmées"),
-        ("💶", f"{revenue:,.0f} €", "Revenus totaux"),
+        ("💶", f"{revenue:,.0f} €", "Revenus nets (après commissions)"),
         ("🌙", f"{avg_stay:.1f} nuits", "Séjour moyen"),
         ("⭐", f"{repeat_rt:.0f}%", "Clients fidèles"),
         ("🏆", top_room, "Chambre star"),
@@ -467,7 +472,7 @@ def main():
     charts.append((c, "Réservations par mois", "Réservations confirmées et modifiées uniquement", True))
 
     c = chart_revenue_month(rows)
-    charts.append((c, "Revenus par mois (€)", "", True))
+    charts.append((c, "Revenus nets par mois", "Booking.com : -15% commission. Mettre à jour dans config.py quand le taux exact est confirmé.", True))
 
     c = chart_yoy_weekly(rows)
     if c:
@@ -486,7 +491,7 @@ def main():
     charts.append((c, "Nationalités (top 8)", "", False))
 
     c = chart_avg_revenue_per_room(rows)
-    charts.append((c, "Revenu moyen par chambre", "Montant divisé si plusieurs chambres réservées ensemble", False))
+    charts.append((c, "Revenu moyen par chambre (net)", "Après commission Booking.com. Divisé si plusieurs chambres réservées ensemble.", False))
 
     c = chart_lead_time(rows)
     if c:

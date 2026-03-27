@@ -97,6 +97,15 @@ NATIONALITY_EN_TO_FR = {
 
 OWNER_NAME = "Juliette Maes"
 
+# ── Commissions ────────────────────────────────────────────────────────────────
+# Net amount = gross amount × (1 - commission rate)
+# Update BOOKING_COM_COMMISSION once you have the exact rate from your contract.
+COMMISSIONS = {
+    "Booking.com": 0.15,   # 15% — update when confirmed
+    "Website":     0.00,
+    "Manual":      0.00,
+}
+
 # ── Sheet column order (must match the Google Sheet header row exactly) ────────
 COLUMNS = [
     "booking_source", "booking_date", "email_type", "status", "reference",
