@@ -8,6 +8,11 @@ on:
 permissions:
   contents: write              # needed to commit docs/ and processed_emails.json back
 
+# Only one run at a time — if a new one is queued while one runs, cancel the waiting one
+concurrency:
+  group: update-bookings
+  cancel-in-progress: true
+
 jobs:
   update:
     runs-on: ubuntu-latest
@@ -48,5 +53,8 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/ scripts/processed_emails.json
-          git diff --staged --quiet && echo "Nothing to commit" || \
-            git commit -m "Auto-update $(date -u +'%Y-%m-%d %H:%M UTC')" && git push
+          git diff --staged --quiet && echo "Nothing to commit" || (
+            git commit -m "Auto-update $(date -u +'%Y-%m-%d %H:%M UTC')" &&
+            git pull --rebase origin main &&
+            git push
+          )
