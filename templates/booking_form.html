@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nouvelle Réservation — La Ferme de la Cour</title>
+<style>
+  :root {
+    --primary:  #5D4037;
+    --light:    #EFEBE9;
+    --accent:   #A1887F;
+    --text:     #3E2723;
+    --red:      #C62828;
+    --green:    #2E7D32;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Verdana, sans-serif;
+    background: var(--light);
+    color: var(--text);
+    padding: 0 0 40px;
+  }
+  header {
+    background: var(--primary);
+    color: #fff;
+    text-align: center;
+    padding: 20px 16px;
+    border-radius: 0 0 12px 12px;
+    margin-bottom: 24px;
+  }
+  header img  { max-height: 65px; margin-bottom: 8px; display: block; margin-inline: auto; }
+  header h1   { font-size: 1.4rem; }
+  header p    { font-size: .9rem; opacity: .85; margin-top: 4px; }
+  .container  { max-width: 580px; margin: 0 auto; padding: 0 16px; }
+
+  /* Alerts */
+  .alert { padding: 14px 16px; border-radius: 8px; margin-bottom: 16px; font-size: .9rem; }
+  .alert.success { background: #E8F5E9; color: var(--green); border: 1px solid #A5D6A7; }
+  .alert.error   { background: #FFEBEE; color: var(--red);   border: 1px solid #EF9A9A; }
+
+  /* Form groups */
+  .form-group  { margin-bottom: 18px; }
+  label        { display: block; font-weight: 600; font-size: .9rem;
+                 color: var(--primary); margin-bottom: 6px; }
+  .optional    { font-weight: 400; font-size: .8rem; color: #888; margin-left: 4px; }
+  .required    { color: var(--red); margin-left: 2px; }
+  input[type="text"],
+  input[type="tel"],
+  input[type="email"],
+  input[type="number"],
+  input[type="date"],
+  select,
+  textarea {
+    width: 100%;
+    padding: 13px 14px;
+    border: 2px solid #D7CCC8;
+    border-radius: 8px;
+    font-size: 16px;     /* 16px prevents iOS zoom */
+    color: var(--text);
+    background: #fff;
+    transition: border-color .2s;
+    -webkit-appearance: none;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--primary);
+    outline: none;
+  }
+  textarea { resize: vertical; min-height: 80px; }
+
+  /* Room checkboxes */
+  .rooms-grid { display: grid; gap: 8px; }
+  .room-option { display: flex; align-items: center; gap: 12px;
+                 background: #fff; border: 2px solid #D7CCC8;
+                 border-radius: 8px; padding: 12px 14px; cursor: pointer;
+                 font-size: .95rem; transition: border-color .15s, background .15s; }
+  .room-option:has(input:checked) {
+    border-color: var(--primary);
+    background: #FBE9E7;
+  }
+  .room-option input[type="checkbox"] {
+    width: 20px; height: 20px; min-width: 20px;
+    accent-color: var(--primary); cursor: pointer;
+  }
+
+  /* Nights display */
+  .nights-pill {
+    display: none;
+    background: #FBE9E7;
+    color: var(--primary);
+    font-weight: 700;
+    font-size: .95rem;
+    text-align: center;
+    padding: 10px;
+    border-radius: 8px;
+    margin-top: 8px;
+  }
+
+  /* Date row */
+  .date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* Submit */
+  button[type="submit"] {
+    width: 100%;
+    padding: 16px;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 6px;
+    transition: background .2s;
+  }
+  button[type="submit"]:active { background: #4E342E; }
+
+  /* Divider */
+  .divider { border: none; border-top: 1px solid #D7CCC8; margin: 24px 0; }
+
+  @media (max-width: 480px) {
+    .date-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <img src="/logo.png" alt="La Ferme de la Cour" onerror="this.style.display='none'">
+  <h1>Nouvelle Réservation</h1>
+  <p>La Ferme de la Cour — Réservation directe</p>
+</header>
+
+<div class="container">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="alert {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="POST" action="/" novalidate>
+
+    <!-- ── Chambres ────────────────────────────────────────────── -->
+    <div class="form-group">
+      <label>Chambre(s) <span class="required">*</span></label>
+      <div class="rooms-grid">
+        {% for room in rooms %}
+        <label class="room-option">
+          <input type="checkbox" name="rooms" value="{{ room }}"
+            {% if room in (form_data.getlist('rooms') if form_data else []) %}checked{% endif %}>
+          {{ room }}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- ── Dates ───────────────────────────────────────────────── -->
+    <div class="date-row">
+      <div class="form-group">
+        <label for="arrival_date">Arrivée <span class="required">*</span></label>
+        <input type="date" id="arrival_date" name="arrival_date" required
+               value="{{ form_data.get('arrival_date', '') }}">
+      </div>
+      <div class="form-group">
+        <label for="departure_date">Départ <span class="required">*</span></label>
+        <input type="date" id="departure_date" name="departure_date" required
+               value="{{ form_data.get('departure_date', '') }}">
+      </div>
+    </div>
+    <div class="nights-pill" id="nights_pill"></div>
+
+    <hr class="divider">
+
+    <!-- ── Client ─────────────────────────────────────────────── -->
+    <div class="form-group">
+      <label for="guest_name">Nom du Client <span class="required">*</span></label>
+      <input type="text" id="guest_name" name="guest_name"
+             placeholder="Prénom Nom" required
+             value="{{ form_data.get('guest_name', '') }}">
+    </div>
+
+    <div class="form-group">
+      <label for="phone">Téléphone <span class="required">*</span></label>
+      <input type="tel" id="phone" name="phone"
+             placeholder="+32 xxx xx xx xx" required
+             value="{{ form_data.get('phone', '') }}">
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email <span class="optional">(facultatif)</span></label>
+      <input type="email" id="email" name="email"
+             placeholder="exemple@email.com"
+             value="{{ form_data.get('email', '') }}">
+    </div>
+
+    <div class="form-group">
+      <label for="nationality">Nationalité <span class="optional">(facultatif)</span></label>
+      <select id="nationality" name="nationality">
+        <option value="">— Choisir —</option>
+        {% for nat in nationalities %}
+        <option value="{{ nat }}"
+          {% if form_data.get('nationality') == nat %}selected{% endif %}>
+          {{ nat }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <hr class="divider">
+
+    <!-- ── Montant & Notes ────────────────────────────────────── -->
+    <div class="form-group">
+      <label for="amount">Montant Total (€) <span class="optional">(facultatif)</span></label>
+      <input type="number" id="amount" name="amount" step="0.01" min="0"
+             placeholder="0.00"
+             value="{{ form_data.get('amount', '') }}">
+    </div>
+
+    <div class="form-group">
+      <label for="notes">Notes <span class="optional">(facultatif)</span></label>
+      <textarea id="notes" name="notes"
+                placeholder="Infos utiles sur le client ou la réservation…">{{ form_data.get('notes', '') }}</textarea>
+    </div>
+
+    <button type="submit">Enregistrer la Réservation</button>
+
+  </form>
+</div>
+
+<script>
+  function updateNights() {
+    const a = document.getElementById('arrival_date').value;
+    const d = document.getElementById('departure_date').value;
+    const pill = document.getElementById('nights_pill');
+    if (a && d) {
+      const nights = Math.round((new Date(d) - new Date(a)) / 86400000);
+      if (nights > 0) {
+        pill.textContent = nights + (nights === 1 ? ' nuit' : ' nuits');
+        pill.style.display = 'block';
+      } else {
+        pill.style.display = 'none';
+      }
+    }
+  }
+
+  document.getElementById('arrival_date').addEventListener('change', function () {
+    // Set min departure = arrival
+    document.getElementById('departure_date').min = this.value;
+    updateNights();
+  });
+  document.getElementById('departure_date').addEventListener('change', updateNights);
+
+  // Run on page load in case form was re-filled after error
+  updateNights();
+</script>
+</body>
+</html>
