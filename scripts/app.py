@@ -31,10 +31,19 @@ app = Flask(__name__,
 app.secret_key = os.urandom(24)
 
 
-def generate_reference() -> str:
-    """Generate a unique reference for direct bookings: D + YYYYMMDD + 4-digit ms."""
-    now = datetime.now()
-    return f"D{now.strftime('%Y%m%d')}{now.strftime('%f')[:4]}"
+def generate_reference(worksheet) -> str:
+    """
+    Generate a sequential manual reference: M0001, M0002, …
+    Scans the sheet for the highest existing M#### reference and increments by 1.
+    """
+    records = worksheet.get_all_records()
+    max_num = 0
+    for rec in records:
+        ref = str(rec.get("reference") or "")
+        m = re.match(r"^M(\d+)$", ref)
+        if m:
+            max_num = max(max_num, int(m.group(1)))
+    return f"M{max_num + 1:04d}"
 
 
 def row_dict_to_list(row: dict) -> list:
@@ -98,12 +107,26 @@ def booking_form():
         arrival_fmt   = arrival_date.strftime("%d/%m/%Y")
         departure_fmt = departure_date.strftime("%d/%m/%Y")
 
+        # ── Connect to sheet (needed for reference + repeat-guest check) ────────
+        try:
+            ws      = get_worksheet()
+            records = ws.get_all_records()
+        except Exception as exc:
+            log.error(f"Failed to connect to Google Sheet: {exc}")
+            flash(f"Erreur de connexion au Google Sheet : {exc}", "error")
+            return render_template(
+                "booking_form.html",
+                rooms=ROOMS,
+                nationalities=NATIONALITIES,
+                form_data=request.form,
+            )
+
         row = {
-            "booking_source":    "Direct",
+            "booking_source":    "Manual",
             "booking_date":      date.today().strftime("%d/%m/%Y"),
             "email_type":        "Booking",
             "status":            "Confirmed",
-            "reference":         generate_reference(),
+            "reference":         generate_reference(ws),
             "room1":             rooms_selected[0] if len(rooms_selected) > 0 else "",
             "room2":             rooms_selected[1] if len(rooms_selected) > 1 else "",
             "room3":             rooms_selected[2] if len(rooms_selected) > 2 else "",
@@ -125,8 +148,6 @@ def booking_form():
 
         # ── Repeat-guest detection ────────────────────────────────────────────
         try:
-            ws       = get_worksheet()
-            records  = ws.get_all_records()
             row["repeat_guest"], row["visit_count"] = detect_repeat_guest(row, records)
 
             ws.append_row(row_dict_to_list(row), value_input_option="RAW")
