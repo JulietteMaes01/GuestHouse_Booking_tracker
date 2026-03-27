@@ -7,7 +7,7 @@ Google Sheet.
 Run:
     python app.py
 
-Then open  http://localhost:5000  in any browser on the same device.
+Then open  http://localhost:5051  in any browser on the same device.
 To access from another device on the same Wi-Fi, use the printed local URL.
 """
 import os
@@ -166,8 +166,8 @@ if __name__ == "__main__":
     print("  La Ferme de la Cour — Formulaire de Réservation")
     print("═" * 50)
     print(f"  Ouvrir dans le navigateur :")
-    print(f"  → Sur cet appareil  : http://localhost:5000")
-    print(f"  → Sur le réseau Wi-Fi : http://{local_ip}:5000")
+    print(f"  → Sur cet appareil  : http://localhost:5051")
+    print(f"  → Sur le réseau Wi-Fi : http://{local_ip}:5051")
     print("═" * 50 + "\n")
 
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    app.run(host="0.0.0.0", port=5051, debug=False)
