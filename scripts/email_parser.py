@@ -345,6 +345,124 @@ def append_new_row(worksheet, row: dict) -> None:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+def _fetch_booking_from_gmail(service, ref: str) -> dict | None:
+    """Search Gmail for the original booking email for a given reference."""
+    query  = f"from:{ELLOHA_SENDER} {ref}"
+    result = service.users().messages().list(
+        userId="me", q=query, maxResults=10
+    ).execute()
+    for msg_meta in result.get("messages", []):
+        try:
+            msg     = get_full_message(service, msg_meta["id"])
+            hdr     = {h["name"]: h["value"] for h in msg["payload"]["headers"]}
+            subject = str(hdr.get("Subject", ""))
+            ts      = int(msg.get("internalDate", 0))
+            body    = get_email_text(msg["payload"])
+            parsed  = parse_email(subject, body, ts)
+            if (parsed and parsed.get("email_type") == "Booking"
+                    and parsed.get("reference") == ref):
+                return parsed
+        except Exception as exc:
+            log.error(f"    ✗ Error reading candidate {msg_meta['id']}: {exc}")
+    return None
+
+
+def _apply_row(row, msg_id, service, worksheet, headers, existing_records,
+               ref_to_rownum, existing_refs, counters):
+    """
+    Apply a single parsed email row to the sheet.
+    Modifies existing_records / ref_to_rownum / existing_refs in-place.
+    counters is a dict with keys 'added', 'updated', 'skipped', 'errors'.
+    Returns True if the email was handled successfully (should be marked processed).
+    """
+    ref        = row["reference"]
+    email_type = row["email_type"]
+
+    # ── Cancellation: update existing row ────────────────────────────────────
+    if email_type == "Cancellation":
+        if ref not in ref_to_rownum:
+            # Original booking not in sheet yet — search Gmail for it
+            log.info(f"  ? Original booking for {ref} not in sheet, searching Gmail …")
+            booking_row = _fetch_booking_from_gmail(service, ref)
+            if booking_row:
+                booking_row["repeat_guest"], booking_row["visit_count"] = \
+                    detect_repeat_guest(booking_row, existing_records)
+                append_new_row(worksheet, booking_row)
+                existing_records.append(booking_row)
+                existing_refs.add(ref)
+                ref_to_rownum[ref] = len(existing_records) + 1
+                counters["added"] += 1
+                log.info(f"  ✓ Added (from Gmail)  {ref}  {booking_row.get('guest_name', '')}")
+            else:
+                # Truly no booking email exists — add minimal placeholder
+                full_row = {c: "" for c in COLUMNS}
+                full_row.update({
+                    "booking_source":    "Unknown",
+                    "booking_date":      row["cancellation_date"],
+                    "email_type":        "Cancellation",
+                    "status":            "Cancelled",
+                    "reference":         ref,
+                    "cancellation_date": row["cancellation_date"],
+                    "guest_name":        row.get("guest_name", ""),
+                })
+                append_new_row(worksheet, full_row)
+                ref_to_rownum[ref] = len(existing_records) + 2
+                existing_records.append(full_row)
+                existing_refs.add(ref)
+                log.warning(f"  ! Added (cancel, no booking email found)  {ref}")
+                counters["added"] += 1
+
+        existing = existing_records[ref_to_rownum[ref] - 2]  # 0-indexed
+        if str(existing.get("status", "")).lower() == "cancelled":
+            counters["skipped"] += 1
+            return True
+        update_row_fields(worksheet, ref_to_rownum[ref], {
+            "status":            "Cancelled",
+            "cancellation_date": row["cancellation_date"],
+        }, headers)
+        log.info(f"  ✓ Cancelled   {ref}  {row.get('guest_name', '')}")
+        counters["updated"] += 1
+
+    # ── Modification: update existing row ────────────────────────────────────
+    elif email_type == "Modification":
+        if ref in ref_to_rownum:
+            updates = {
+                "status":            "Modified",
+                "modification_date": row["modification_date"],
+            }
+            if row.get("arrival_date"):
+                updates["arrival_date"] = row["arrival_date"]
+            if row.get("departure_date"):
+                updates["departure_date"] = row["departure_date"]
+            if row.get("amount"):
+                updates["amount"] = row["amount"]
+            if row.get("nights"):
+                updates["nights"] = row["nights"]
+            update_row_fields(worksheet, ref_to_rownum[ref], updates, headers)
+            log.info(f"  ✓ Modified    {ref}  {row.get('guest_name', '')}")
+            counters["updated"] += 1
+        else:
+            log.warning(f"  ! Modification for unknown ref {ref} — skipping")
+            counters["skipped"] += 1
+
+    # ── New booking ───────────────────────────────────────────────────────────
+    else:
+        if ref in existing_refs:
+            counters["skipped"] += 1
+            return True
+        row["repeat_guest"], row["visit_count"] = detect_repeat_guest(
+            row, existing_records
+        )
+        append_new_row(worksheet, row)
+        existing_records.append(row)
+        existing_refs.add(ref)
+        ref_to_rownum[ref] = len(existing_records) + 1
+        counters["added"] += 1
+        log.info(f"  ✓ Added       {ref}  {row.get('guest_name', '')}")
+
+    return True
+
+
 def run():
     log.info("Connecting to Gmail and Google Sheets …")
     service   = get_gmail_service()
@@ -360,111 +478,148 @@ def run():
     messages      = fetch_elloha_emails(service)
     processed_ids = _load_processed_ids()
 
-    added = updated = skipped = errors = 0
+    # ── Fetch and parse all unprocessed emails ────────────────────────────────
+    # Two-pass approach: process new Bookings first so they exist in the sheet
+    # before Cancellations / Modifications reference them.
+    bookings      = []   # (msg_meta, parsed_row)
+    cancellations = []   # (msg_meta, parsed_row)
+    fetch_errors  = 0
 
+    skipped_fetch = 0
     for msg_meta in messages:
         if msg_meta["id"] in processed_ids:
-            skipped += 1
+            skipped_fetch += 1
             continue
         try:
             msg     = get_full_message(service, msg_meta["id"])
             hdr     = {h["name"]: h["value"] for h in msg["payload"]["headers"]}
             subject = str(hdr.get("Subject", ""))
             ts      = int(msg.get("internalDate", 0))
-
-            body = get_email_text(msg["payload"])
-            row  = parse_email(subject, body, ts)
-
+            body    = get_email_text(msg["payload"])
+            row     = parse_email(subject, body, ts)
             if row is None:
-                skipped += 1
+                skipped_fetch += 1
                 continue
-
-            ref        = row["reference"]
-            email_type = row["email_type"]
-
-            # ── Cancellation: update existing row ────────────────────────────
-            if email_type == "Cancellation":
-                if ref in ref_to_rownum:
-                    existing = existing_records[ref_to_rownum[ref] - 2]  # 0-indexed
-                    if str(existing.get("status", "")).lower() == "cancelled":
-                        skipped += 1
-                        continue
-                    update_row_fields(worksheet, ref_to_rownum[ref], {
-                        "status":            "Cancelled",
-                        "cancellation_date": row["cancellation_date"],
-                    }, headers)
-                    log.info(f"  ✓ Cancelled   {ref}  {row['guest_name']}")
-                    updated += 1
-                else:
-                    # Original booking not in sheet — add as a note row
-                    full_row = {c: "" for c in COLUMNS}
-                    full_row.update({
-                        "booking_source":    "Unknown",
-                        "booking_date":      row["cancellation_date"],
-                        "email_type":        "Cancellation",
-                        "status":            "Cancelled",
-                        "reference":         ref,
-                        "cancellation_date": row["cancellation_date"],
-                        "guest_name":        row.get("guest_name", ""),
-                    })
-                    append_new_row(worksheet, full_row)
-                    ref_to_rownum[ref] = len(existing_records) + 2
-                    existing_records.append(full_row)
-                    existing_refs.add(ref)
-                    log.info(f"  ✓ Added (cancel, no original)  {ref}")
-                    added += 1
-
-            # ── Modification: update existing row ────────────────────────────
-            elif email_type == "Modification":
-                if ref in ref_to_rownum:
-                    updates = {
-                        "status":            "Modified",
-                        "modification_date": row["modification_date"],
-                    }
-                    if row.get("arrival_date"):
-                        updates["arrival_date"] = row["arrival_date"]
-                    if row.get("departure_date"):
-                        updates["departure_date"] = row["departure_date"]
-                    if row.get("amount"):
-                        updates["amount"] = row["amount"]
-                    if row.get("nights"):
-                        updates["nights"] = row["nights"]
-                    update_row_fields(worksheet, ref_to_rownum[ref], updates, headers)
-                    log.info(f"  ✓ Modified    {ref}  {row['guest_name']}")
-                    updated += 1
-                else:
-                    # Original not in sheet — skip (nothing to update)
-                    log.warning(f"  ! Modification for unknown ref {ref} — skipping")
-                    skipped += 1
-
-            # ── New booking ───────────────────────────────────────────────────
+            if row["email_type"] == "Booking":
+                bookings.append((msg_meta, row))
             else:
-                if ref in existing_refs:
-                    skipped += 1
-                    continue
-                row["repeat_guest"], row["visit_count"] = detect_repeat_guest(
-                    row, existing_records
-                )
-                append_new_row(worksheet, row)
-                existing_records.append(row)
-                existing_refs.add(ref)
-                ref_to_rownum[ref] = len(existing_records) + 1
-                added += 1
-                log.info(f"  ✓ Added       {ref}  {row['guest_name']}")
-
-            # Mark as processed only on success
-            processed_ids.add(msg_meta["id"])
-
+                cancellations.append((msg_meta, row))
         except Exception as exc:
-            errors += 1
+            fetch_errors += 1
             log.error(
-                f"  ✗ Error on message {msg_meta['id']}: {exc}\n"
+                f"  ✗ Error reading message {msg_meta['id']}: {exc}\n"
+                + traceback.format_exc()
+            )
+
+    log.info(
+        f"Fetched — {len(bookings)} new bookings, "
+        f"{len(cancellations)} cancellations/modifications, "
+        f"{skipped_fetch} skipped, {fetch_errors} fetch errors"
+    )
+
+    counters = {"added": 0, "updated": 0, "skipped": 0, "errors": 0}
+
+    # ── Pass 1: New Bookings ──────────────────────────────────────────────────
+    for msg_meta, row in bookings:
+        try:
+            _apply_row(row, msg_meta["id"], service, worksheet, headers,
+                       existing_records, ref_to_rownum, existing_refs, counters)
+            processed_ids.add(msg_meta["id"])
+        except Exception as exc:
+            counters["errors"] += 1
+            log.error(
+                f"  ✗ Error applying booking {msg_meta['id']}: {exc}\n"
+                + traceback.format_exc()
+            )
+
+    # ── Pass 2: Cancellations & Modifications (original rows now in sheet) ────
+    for msg_meta, row in cancellations:
+        try:
+            _apply_row(row, msg_meta["id"], service, worksheet, headers,
+                       existing_records, ref_to_rownum, existing_refs, counters)
+            processed_ids.add(msg_meta["id"])
+        except Exception as exc:
+            counters["errors"] += 1
+            log.error(
+                f"  ✗ Error applying cancel/mod {msg_meta['id']}: {exc}\n"
                 + traceback.format_exc()
             )
 
     _save_processed_ids(processed_ids)
-    log.info(f"Done — {added} added, {updated} updated, {skipped} skipped, {errors} errors")
+    log.info(
+        f"Done — {counters['added']} added, {counters['updated']} updated, "
+        f"{counters['skipped']} skipped, {counters['errors']} errors"
+    )
+
+
+def fix_unknown_rows():
+    """
+    Find rows with booking_source='Unknown' and try to repair them by
+    searching Gmail for the original booking email.
+    Run this once to clean up any placeholder rows created before two-pass
+    processing was in place.
+    """
+    log.info("Scanning sheet for Unknown rows to fix …")
+    service   = get_gmail_service()
+    worksheet = get_worksheet()
+
+    headers, existing_records, ref_to_rownum = load_sheet_with_row_numbers(worksheet)
+
+    unknown_rows = [
+        r for r in existing_records
+        if str(r.get("booking_source", "")).strip().lower() == "unknown"
+    ]
+    log.info(f"Found {len(unknown_rows)} Unknown row(s)")
+
+    for rec in unknown_rows:
+        ref      = str(rec.get("reference") or "").strip()
+        row_num  = ref_to_rownum.get(ref)
+        if not ref or not row_num:
+            continue
+
+        log.info(f"  Searching Gmail for original booking: {ref}")
+        # Search for a booking confirmation email containing this reference
+        query  = f"from:{ELLOHA_SENDER} {ref}"
+        result = service.users().messages().list(
+            userId="me", q=query, maxResults=10
+        ).execute()
+        candidates = result.get("messages", [])
+
+        booking_row = None
+        for msg_meta in candidates:
+            try:
+                msg     = get_full_message(service, msg_meta["id"])
+                hdr     = {h["name"]: h["value"] for h in msg["payload"]["headers"]}
+                subject = str(hdr.get("Subject", ""))
+                ts      = int(msg.get("internalDate", 0))
+                body    = get_email_text(msg["payload"])
+                parsed  = parse_email(subject, body, ts)
+                if parsed and parsed.get("email_type") == "Booking" and parsed.get("reference") == ref:
+                    booking_row = parsed
+                    break
+            except Exception as exc:
+                log.error(f"    ✗ Error reading candidate {msg_meta['id']}: {exc}")
+
+        if booking_row is None:
+            log.warning(f"  ! Could not find original booking email for {ref}")
+            continue
+
+        # Overwrite booking fields but preserve the Cancelled status/date already in sheet
+        skip = {"repeat_guest", "visit_count", "status", "email_type",
+                "cancellation_date", "modification_date"}
+        updates = {k: v for k, v in booking_row.items() if k not in skip}
+        update_row_fields(worksheet, row_num, updates, headers)
+        log.info(
+            f"  ✓ Fixed {ref}  {booking_row.get('guest_name', '')}  "
+            f"({booking_row.get('arrival_date', '')} → {booking_row.get('departure_date', '')})"
+        )
+
+    log.info("fix_unknown_rows complete")
 
 
 if __name__ == "__main__":
-    run()
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "fix":
+        fix_unknown_rows()
+    else:
+        run()
