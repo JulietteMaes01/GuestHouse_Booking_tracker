@@ -341,53 +341,73 @@ def chart_source_trend(rows):
     return _fig_to_b64(fig)
 
 def chart_lead_time_by_month(rows):
-    """Average booking lead time (days) per arrival month — shows when people plan ahead."""
+    """Median booking lead time per arrival month — only past arrivals, all years combined."""
     MONTH_FR = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
-    years = sorted({r["arrival"].year for r in rows})
-    palette = [BROWN, ACCENT]
-    fig, ax = plt.subplots(figsize=(11, 4.5))
-    any_data = False
-    for i, yr in enumerate(years):
-        monthly_leads = defaultdict(list)
-        for r in rows:
-            if r["arrival"].year == yr and r["booking_d"] and r["arrival"] >= r["booking_d"]:
-                lead = (r["arrival"] - r["booking_d"]).days
-                monthly_leads[r["arrival"].month].append(lead)
-        if not monthly_leads:
+    today = date.today()
+    monthly_leads = defaultdict(list)
+    for r in rows:
+        # Only count months that have fully passed so data is complete
+        if r["arrival"] >= today:
             continue
-        any_data = True
-        xs = sorted(monthly_leads.keys())
-        avgs = [np.mean(monthly_leads[m]) for m in xs]
-        ax.plot([MONTH_FR[m-1] for m in xs], avgs, marker="o", markersize=6,
-                color=palette[i % len(palette)], linewidth=2.2, label=str(yr))
-        for m, avg in zip(xs, avgs):
-            ax.annotate(f"{avg:.0f}j", (MONTH_FR[m-1], avg),
-                        textcoords="offset points", xytext=(0, 8),
-                        ha="center", fontsize=8, color=palette[i % len(palette)])
-    if not any_data:
-        plt.close(fig)
+        if r["booking_d"] and r["arrival"] >= r["booking_d"]:
+            monthly_leads[r["arrival"].month].append((r["arrival"] - r["booking_d"]).days)
+    if not monthly_leads:
         return None
-    ax.set_title("Délai moyen de réservation par mois d'arrivée (jours à l'avance)")
-    ax.set_ylabel("Jours à l'avance")
-    ax.legend(frameon=False)
-    ax.grid(color=LIGHT, zorder=0)
-    ax.set_ylim(bottom=0)
+    # Sort months starting from January
+    months = list(range(1, 13))
+    medians = [np.median(monthly_leads[m]) if monthly_leads[m] else None for m in months]
+    ns      = [len(monthly_leads[m]) for m in months]
+    # Filter out months with no data
+    valid = [(MONTH_FR[m-1], med, n) for m, med, n in zip(months, medians, ns) if med is not None]
+    labels, vals, counts = zip(*valid)
+    fig, ax = plt.subplots(figsize=(11, 4.5))
+    colors = [BROWN if v == max(vals) else ACCENT for v in vals]
+    bars = ax.bar(labels, vals, color=colors, width=0.6, zorder=3)
+    # Label each bar with median days + sample size
+    for bar, v, n in zip(bars, vals, counts):
+        ax.text(bar.get_x() + bar.get_width()/2, v + 1.5,
+                f"{v:.0f}j", ha="center", va="bottom", fontsize=10,
+                fontweight="bold", color=BROWN)
+        ax.text(bar.get_x() + bar.get_width()/2, -3,
+                f"n={n}", ha="center", va="top", fontsize=8, color=ACCENT)
+    ax.set_title("Délai médian de réservation par mois d'arrivée")
+    ax.set_ylabel("Jours à l'avance (médiane)")
+    ax.grid(axis="y", color=LIGHT, zorder=0)
+    ax.set_ylim(-6, max(vals) * 1.25)
     return _fig_to_b64(fig)
 
 
 def chart_booking_day_of_week(rows):
-    """Which day of the week do people actually make the booking?"""
+    """Day-of-week bookings are made, split by season (2×2 grid)."""
     DAY_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
-    counts = Counter(r["booking_d"].weekday() for r in rows if r["booking_d"])
-    vals   = [counts.get(i, 0) for i in range(7)]
-    colors = [BROWN if v == max(vals) else ACCENT for v in vals]
-    fig, ax = plt.subplots(figsize=(7, 4))
-    bars = ax.bar(DAY_FR, vals, color=colors, width=0.6, zorder=3)
-    ax.bar_label(bars, padding=4, fontsize=11, fontweight="bold")
-    ax.set_title("Jour de la semaine où les clients réservent")
-    ax.set_ylabel("Réservations")
-    ax.grid(axis="y", color=LIGHT, zorder=0)
-    ax.set_ylim(0, max(vals) * 1.18)
+    SEASONS = {
+        "🌸 Printemps\n(Mar–Mai)": [3, 4, 5],
+        "☀️ Été\n(Jun–Aoû)":      [6, 7, 8],
+        "🍂 Automne\n(Sep–Nov)":  [9, 10, 11],
+        "❄️ Hiver\n(Déc–Fév)":   [12, 1, 2],
+    }
+    fig, axes = plt.subplots(2, 2, figsize=(12, 7))
+    fig.suptitle("Jour de réservation par saison", fontsize=14, fontweight="bold", color=BROWN, y=1.01)
+    axes_flat = axes.flatten()
+    for ax, (season_label, months) in zip(axes_flat, SEASONS.items()):
+        season_rows = [r for r in rows if r["booking_d"] and r["arrival"].month in months]
+        counts = Counter(r["booking_d"].weekday() for r in season_rows)
+        vals   = [counts.get(i, 0) for i in range(7)]
+        if max(vals) == 0:
+            ax.text(0.5, 0.5, "Pas de données", ha="center", va="center",
+                    transform=ax.transAxes, color=ACCENT)
+            ax.set_title(season_label, fontsize=11)
+            continue
+        colors = [BROWN if v == max(vals) else ACCENT if v >= sorted(vals)[-2] else GOLD
+                  for v in vals]
+        bars = ax.bar(DAY_FR, vals, color=colors, width=0.6, zorder=3)
+        ax.bar_label(bars, padding=3, fontsize=9, fontweight="bold")
+        ax.set_title(f"{season_label}  (n={sum(vals)})", fontsize=11)
+        ax.set_ylim(0, max(vals) * 1.25)
+        ax.grid(axis="y", color=LIGHT, zorder=0)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+    fig.tight_layout()
     return _fig_to_b64(fig)
 
 
@@ -602,8 +622,8 @@ def main():
 
     # ── Marketing insights ────────────────────────────────────────────────────
     c = chart_booking_day_of_week(rows)
-    charts.append((c, "Quel jour réserve-t-on le plus ?",
-                   "Jour où la réservation est faite (pas le jour d'arrivée)", False))
+    charts.append((c, "Quel jour réserve-t-on le plus ? (par saison)",
+                   "Jour où la réservation est faite (pas le jour d'arrivée) — basé sur la saison d'arrivée", True))
 
     c = chart_lead_time_by_month(rows)
     if c:
