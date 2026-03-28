@@ -84,14 +84,18 @@ def _norm_nat(n):
     return NATIONALITY_FR.get(n, n) if n not in ("", "nan", "Unknown", "None") else None
 
 # ── load data ────────────────────────────────────────────────────────────────
-def load_data():
+def load_data(include_cancelled=False):
     ws = get_worksheet()
     records = ws.get_all_records()
     rows = []
     for r in records:
         status = str(r.get("status", "")).strip()
-        if status in ("Cancelled", "", "Unknown") or not str(r.get("reference","")).strip():
-            continue
+        if not include_cancelled:
+            if status in ("Cancelled", "", "Unknown") or not str(r.get("reference","")).strip():
+                continue
+        else:
+            if status in ("", "Unknown") or not str(r.get("reference","")).strip():
+                continue
         arrival   = _parse_date(r.get("arrival_date", ""))
         departure = _parse_date(r.get("departure_date", ""))
         booking_d = _parse_date(r.get("booking_date", ""))
@@ -336,6 +340,101 @@ def chart_source_trend(rows):
     ax.grid(axis="y", color=LIGHT, zorder=0)
     return _fig_to_b64(fig)
 
+def chart_lead_time_by_month(rows):
+    """Average booking lead time (days) per arrival month — shows when people plan ahead."""
+    MONTH_FR = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
+    years = sorted({r["arrival"].year for r in rows})
+    palette = [BROWN, ACCENT]
+    fig, ax = plt.subplots(figsize=(11, 4.5))
+    any_data = False
+    for i, yr in enumerate(years):
+        monthly_leads = defaultdict(list)
+        for r in rows:
+            if r["arrival"].year == yr and r["booking_d"] and r["arrival"] >= r["booking_d"]:
+                lead = (r["arrival"] - r["booking_d"]).days
+                monthly_leads[r["arrival"].month].append(lead)
+        if not monthly_leads:
+            continue
+        any_data = True
+        xs = sorted(monthly_leads.keys())
+        avgs = [np.mean(monthly_leads[m]) for m in xs]
+        ax.plot([MONTH_FR[m-1] for m in xs], avgs, marker="o", markersize=6,
+                color=palette[i % len(palette)], linewidth=2.2, label=str(yr))
+        for m, avg in zip(xs, avgs):
+            ax.annotate(f"{avg:.0f}j", (MONTH_FR[m-1], avg),
+                        textcoords="offset points", xytext=(0, 8),
+                        ha="center", fontsize=8, color=palette[i % len(palette)])
+    if not any_data:
+        plt.close(fig)
+        return None
+    ax.set_title("Délai moyen de réservation par mois d'arrivée (jours à l'avance)")
+    ax.set_ylabel("Jours à l'avance")
+    ax.legend(frameon=False)
+    ax.grid(color=LIGHT, zorder=0)
+    ax.set_ylim(bottom=0)
+    return _fig_to_b64(fig)
+
+
+def chart_booking_day_of_week(rows):
+    """Which day of the week do people actually make the booking?"""
+    DAY_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
+    counts = Counter(r["booking_d"].weekday() for r in rows if r["booking_d"])
+    vals   = [counts.get(i, 0) for i in range(7)]
+    colors = [BROWN if v == max(vals) else ACCENT for v in vals]
+    fig, ax = plt.subplots(figsize=(7, 4))
+    bars = ax.bar(DAY_FR, vals, color=colors, width=0.6, zorder=3)
+    ax.bar_label(bars, padding=4, fontsize=11, fontweight="bold")
+    ax.set_title("Jour de la semaine où les clients réservent")
+    ax.set_ylabel("Réservations")
+    ax.grid(axis="y", color=LIGHT, zorder=0)
+    ax.set_ylim(0, max(vals) * 1.18)
+    return _fig_to_b64(fig)
+
+
+def chart_cancellation_rate(all_rows):
+    """Cancellation rate (%) by booking source — uses all rows including cancelled."""
+    total_by_src  = Counter(r["source"] for r in all_rows)
+    cancel_by_src = Counter(r["source"] for r in all_rows if r["status"] == "Cancelled")
+    sources = [s for s in ["Booking.com", "Website", "Manual"] if total_by_src.get(s, 0) > 0]
+    rates   = [cancel_by_src.get(s, 0) / total_by_src[s] * 100 for s in sources]
+    colors  = [SOURCE_COLORS.get(s, LIGHT) for s in sources]
+    fig, ax = plt.subplots(figsize=(6, 4))
+    bars = ax.bar(sources, rates, color=colors, width=0.5, zorder=3)
+    ax.bar_label(bars, padding=4, fontsize=12, fontweight="bold",
+                 labels=[f"{v:.0f}%" for v in rates])
+    totals_lbl = [f"(sur {total_by_src[s]})" for s in sources]
+    for bar, lbl in zip(bars, totals_lbl):
+        ax.text(bar.get_x() + bar.get_width()/2, -2.5, lbl,
+                ha="center", va="top", fontsize=8, color=ACCENT)
+    ax.set_title("Taux d'annulation par canal")
+    ax.set_ylabel("%")
+    ax.grid(axis="y", color=LIGHT, zorder=0)
+    ax.set_ylim(-5, max(rates) * 1.3 if rates else 20)
+    return _fig_to_b64(fig)
+
+
+def chart_revenue_per_night(rows):
+    """Net revenue per night per booking source — true channel value."""
+    src_rpn = defaultdict(list)
+    for r in rows:
+        if r["net_amount"] > 0 and r["nights"] > 0:
+            src_rpn[r["source"]].append(r["net_amount"] / r["nights"])
+    sources = [s for s in ["Booking.com", "Website", "Manual"] if src_rpn.get(s)]
+    if not sources:
+        return None
+    means  = [np.mean(src_rpn[s]) for s in sources]
+    colors = [SOURCE_COLORS.get(s, LIGHT) for s in sources]
+    fig, ax = plt.subplots(figsize=(6, 4))
+    bars = ax.bar(sources, means, color=colors, width=0.5, zorder=3)
+    ax.bar_label(bars, padding=4, fontsize=12, fontweight="bold",
+                 labels=[f"{v:.0f} €" for v in means])
+    ax.set_title("Revenu net moyen par nuit (par canal)")
+    ax.set_ylabel("€ / nuit")
+    ax.grid(axis="y", color=LIGHT, zorder=0)
+    ax.set_ylim(0, max(means) * 1.25)
+    return _fig_to_b64(fig)
+
+
 def chart_avg_revenue_per_room(rows):
     room_rev   = defaultdict(list)
     for r in rows:
@@ -454,8 +553,9 @@ def build_html(kpis, charts):
 # ── main ──────────────────────────────────────────────────────────────────────
 def main():
     print("Chargement des données…")
-    rows = load_data()
-    print(f"  {len(rows)} réservations actives chargées")
+    rows      = load_data(include_cancelled=False)
+    all_rows  = load_data(include_cancelled=True)
+    print(f"  {len(rows)} réservations actives, {len(all_rows)} au total (avec annulations)")
 
     print("Génération des graphiques…")
     kpis = compute_kpis(rows)
@@ -499,6 +599,24 @@ def main():
 
     c = chart_repeat_guests(rows)
     charts.append((c, "Fidélité des clients", "", False))
+
+    # ── Marketing insights ────────────────────────────────────────────────────
+    c = chart_booking_day_of_week(rows)
+    charts.append((c, "Quel jour réserve-t-on le plus ?",
+                   "Jour où la réservation est faite (pas le jour d'arrivée)", False))
+
+    c = chart_lead_time_by_month(rows)
+    if c:
+        charts.append((c, "Combien de jours à l'avance réserve-t-on selon le mois ?",
+                       "Utile pour planifier vos campagnes publicitaires", True))
+
+    c = chart_cancellation_rate(all_rows)
+    charts.append((c, "Taux d'annulation par canal", "", False))
+
+    c = chart_revenue_per_night(rows)
+    if c:
+        charts.append((c, "Revenu net moyen par nuit (par canal)",
+                       "Après commission Booking.com — valeur réelle de chaque canal", False))
 
     html = build_html(kpis, charts)
 
