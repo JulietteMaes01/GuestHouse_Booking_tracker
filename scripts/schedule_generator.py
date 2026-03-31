@@ -66,18 +66,18 @@ header .sub { font-style: italic; font-size: .95rem; opacity: .85; margin-top: 4
                  margin: 28px 0 12px; border-bottom: 2px solid var(--accent); padding-bottom: 4px; }
 .card { background: var(--card-bg); border-radius: 10px; padding: 16px;
         margin-bottom: 14px; box-shadow: var(--shadow); border-left: 5px solid #ccc; }
-.card.arrival   { border-left-color: #1565C0; }
-.card.departure { border-left-color: #E65100; }
-.card.staying   { border-left-color: #2E7D32; }
-.card.turnover  { border-left-color: #AD1457; }
+.card.arrival   { border-left-color: #D4A373; }
+.card.departure { border-left-color: #8B6355; }
+.card.staying   { border-left-color: #4A5D4E; }
+.card.turnover  { border-left-color: #7A8C7E; }
 .badge { display: inline-block; padding: 3px 10px; border-radius: 20px;
          font-size: .75rem; font-weight: 700; margin-bottom: 8px; }
-.badge.arrival   { background: #E3F2FD; color: #1565C0; }
-.badge.departure { background: #FFF3E0; color: #E65100; }
-.badge.staying   { background: #E8F5E9; color: #2E7D32; }
-.badge.turnover  { background: #FCE4EC; color: #AD1457; }
+.badge.arrival   { background: #FAF0E6; color: #A0622A; }
+.badge.departure { background: #F5EDEA; color: #6B4033; }
+.badge.staying   { background: #EBF0EC; color: #2C3D30; }
+.badge.turnover  { background: #EEF2EF; color: #4A5D4E; }
 .guest-name  { font-size: 1.15rem; font-weight: 700; margin-bottom: 6px; }
-.repeat-tag  { background: #FFF9C4; color: #F57F17; font-size: .72rem;
+.repeat-tag  { background: #F5EDD8; color: #8B6220; font-size: .72rem;
                padding: 2px 8px; border-radius: 12px; margin-left: 8px; vertical-align: middle; }
 .info-grid   { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px;
                font-size: .88rem; margin-top: 6px; }
@@ -85,8 +85,8 @@ header .sub { font-style: italic; font-size: .95rem; opacity: .85; margin-top: 4
 .info-value  { color: var(--text); }
 .notes-box   { background: #F5F0E8; border-radius: 6px; padding: 8px 12px;
                margin-top: 10px; font-style: italic; font-size: .85rem; color: #4A5D4E; }
-.action-box  { background: #FFEBEE; border-radius: 6px; padding: 8px 12px;
-               margin-top: 10px; font-weight: 700; font-size: .85rem; color: #C62828; }
+.action-box  { background: #FDF3E8; border-radius: 6px; padding: 8px 12px;
+               margin-top: 10px; font-weight: 700; font-size: .85rem; color: #7A4A1E; }
 .empty-msg   { text-align: center; padding: 48px; color: var(--secondary);
                font-style: italic; font-size: 1.1rem; }
 /* Weekly stats */
