@@ -19,7 +19,7 @@ warnings.filterwarnings("ignore")
 # ── local imports ────────────────────────────────────────────────────────────
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from auth import get_worksheet
-from config import DOCS_FOLDER, GITHUB_REPO_PATH, ROOMS, COMMISSIONS
+from config import DOCS_FOLDER, GITHUB_REPO_PATH, ROOMS, COMMISSIONS, BOOKING_GOALS
 
 # ── colour palette ───────────────────────────────────────────────────────────
 BROWN   = "#5D4037"
@@ -125,9 +125,10 @@ def load_data(include_cancelled=False):
             "commission": commission,
             "nights":     nights,
             "nationality": _norm_nat(r.get("nationality", "")),
-            "repeat":    str(r.get("repeat_guest", "")).lower() in ("true", "1", "yes"),
-            "status":    status,
-            "reference": str(r.get("reference", "")),
+            "repeat":       str(r.get("repeat_guest", "")).lower() in ("true", "1", "yes"),
+            "table_dhotes": str(r.get("table_dhotes", "")).lower() in ("true", "1", "yes", "oui"),
+            "status":       status,
+            "reference":    str(r.get("reference", "")),
         })
     return rows
 
@@ -381,10 +382,10 @@ def chart_booking_day_of_week(rows):
     """Day-of-week bookings are made, split by season (2×2 grid)."""
     DAY_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
     SEASONS = {
-        "🌸 Printemps\n(Mar–Mai)": [3, 4, 5],
-        "☀️ Été\n(Jun–Aoû)":      [6, 7, 8],
-        "🍂 Automne\n(Sep–Nov)":  [9, 10, 11],
-        "❄️ Hiver\n(Déc–Fév)":   [12, 1, 2],
+        "Printemps (Mar-Mai)": [3, 4, 5],
+        "Ete (Jun-Aou)":       [6, 7, 8],
+        "Automne (Sep-Nov)":   [9, 10, 11],
+        "Hiver (Dec-Fev)":     [12, 1, 2],
     }
     fig, axes = plt.subplots(2, 2, figsize=(12, 7))
     fig.suptitle("Jour de réservation par saison", fontsize=14, fontweight="bold", color=BROWN, y=1.01)
@@ -455,6 +456,86 @@ def chart_revenue_per_night(rows):
     return _fig_to_b64(fig)
 
 
+def chart_weekly_goal(rows):
+    """Bookings per week vs the annual goal — green = hit, red = missed."""
+    from datetime import timedelta
+    import calendar
+
+    # Group bookings by ISO week key  "YYYY-Www"
+    weekly = defaultdict(int)
+    for r in rows:
+        iso = r["arrival"].isocalendar()
+        weekly[f"{iso[0]}-W{iso[1]:02d}"] += 1
+
+    if not weekly:
+        return None
+
+    # Sort weeks and split by year
+    all_weeks = sorted(weekly.keys())
+    years = sorted({w.split("-")[0] for w in all_weeks})
+
+    fig, axes = plt.subplots(len(years), 1,
+                             figsize=(13, 4 * len(years)),
+                             squeeze=False)
+    fig.suptitle("Réservations par semaine vs objectif",
+                 fontsize=14, fontweight="bold", color=BROWN, y=1.01)
+
+    for ax, yr in zip(axes.flatten(), years):
+        yr_int  = int(yr)
+        goal    = BOOKING_GOALS.get(yr_int, 0)
+        yr_weeks = sorted(w for w in all_weeks if w.startswith(yr))
+        xs   = [int(w.split("-W")[1]) for w in yr_weeks]
+        vals = [weekly[w] for w in yr_weeks]
+        colors = ["#2E7D32" if v >= goal else "#C62828" for v in vals]
+        bars = ax.bar(xs, vals, color=colors, width=0.7, zorder=3)
+        ax.bar_label(bars, padding=2, fontsize=8, fontweight="bold")
+        if goal:
+            ax.axhline(goal, color=BROWN, linestyle="--", linewidth=1.5,
+                       label=f"Objectif {yr}: {goal}/semaine")
+            ax.legend(frameon=False, fontsize=10)
+        ax.set_title(str(yr), fontsize=12, fontweight="bold", color=BROWN)
+        ax.set_xlabel("Semaine de l'année")
+        ax.set_ylabel("Réservations")
+        ax.set_ylim(0, max(vals + [goal]) * 1.3)
+        ax.grid(axis="y", color=LIGHT, zorder=0)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        # Count hit/miss
+        hit  = sum(1 for v in vals if v >= goal)
+        miss = len(vals) - hit
+        ax.text(0.99, 0.95, f"✓ {hit} sem. atteintes  ✗ {miss} manquées",
+                transform=ax.transAxes, ha="right", va="top",
+                fontsize=9, color=BROWN)
+
+    fig.tight_layout()
+    return _fig_to_b64(fig)
+
+
+def chart_table_dhotes(rows):
+    """How many bookings include Table d'hôtes, by month."""
+    MONTH_FR = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
+    td_by_month    = Counter(r["arrival"].month for r in rows if r["table_dhotes"])
+    total_by_month = Counter(r["arrival"].month for r in rows)
+    months = [m for m in range(1, 13) if total_by_month.get(m, 0) > 0]
+    if not months or not any(td_by_month.values()):
+        return None
+    x   = np.arange(len(months))
+    w   = 0.38
+    tot = [total_by_month[m] for m in months]
+    tdt = [td_by_month.get(m, 0) for m in months]
+    fig, ax = plt.subplots(figsize=(11, 4))
+    bars1 = ax.bar(x - w/2, tot, w, label="Total réservations", color=LIGHT,   zorder=3)
+    bars2 = ax.bar(x + w/2, tdt, w, label="Dont Table d'hôtes", color=BROWN,  zorder=3)
+    ax.bar_label(bars2, padding=3, fontsize=9, fontweight="bold")
+    ax.set_xticks(x)
+    ax.set_xticklabels([MONTH_FR[m-1] for m in months])
+    ax.set_title("Réservations avec Table d'hôtes par mois")
+    ax.set_ylabel("Réservations")
+    ax.legend(frameon=False)
+    ax.grid(axis="y", color=LIGHT, zorder=0)
+    return _fig_to_b64(fig)
+
+
 def chart_avg_revenue_per_room(rows):
     room_rev   = defaultdict(list)
     for r in rows:
@@ -482,18 +563,31 @@ def compute_kpis(rows):
     revenue   = sum(r["net_amount"] for r in rows)
     avg_stay  = np.mean([r["nights"] for r in rows if r["nights"] > 0])
     repeat_rt = sum(1 for r in rows if r["repeat"]) / total * 100 if total else 0
-    top_room  = Counter(rm for r in rows for rm in r["rooms"]).most_common(1)[0][0].split()[0]
+    room_counts = Counter(rm for r in rows for rm in r["rooms"])
+    max_count   = room_counts.most_common(1)[0][1]
+    top_room    = " & ".join(rm.split()[0] for rm, cnt in room_counts.items() if cnt == max_count)
     leads     = [(r["arrival"] - r["booking_d"]).days
                  for r in rows if r["booking_d"] and r["arrival"] >= r["booking_d"]]
     med_lead  = int(np.median(leads)) if leads else 0
+    # Current week goal
+    this_year  = date.today().year
+    this_week  = date.today().isocalendar()[1]
+    goal       = BOOKING_GOALS.get(this_year, 0)
+    week_count = sum(1 for r in rows
+                     if r["arrival"].isocalendar()[0] == this_year
+                     and r["arrival"].isocalendar()[1] == this_week)
+    week_kpi   = f"{week_count}/{goal}" if goal else str(week_count)
+    week_icon  = "✅" if goal and week_count >= goal else "🎯"
+    td_count   = sum(1 for r in rows if r["table_dhotes"])
     return [
         ("🏠", f"{total}", "Réservations totales"),
-        ("✅", f"{confirmed}", "Confirmées"),
         ("💶", f"{revenue:,.0f} €", "Revenus nets (après commissions)"),
         ("🌙", f"{avg_stay:.1f} nuits", "Séjour moyen"),
         ("⭐", f"{repeat_rt:.0f}%", "Clients fidèles"),
         ("🏆", top_room, "Chambre star"),
-        ("📅", f"{med_lead} jours", "Délai réservation"),
+        ("📅", f"{med_lead} jours", "Délai médian de réservation"),
+        (week_icon, week_kpi, f"Cette semaine (objectif {this_year})"),
+        ("🍽️", f"{td_count}", "Réservations Table d'hôtes"),
     ]
 
 # ── HTML builder ──────────────────────────────────────────────────────────────
@@ -637,6 +731,17 @@ def main():
     if c:
         charts.append((c, "Revenu net moyen par nuit (par canal)",
                        "Après commission Booking.com — valeur réelle de chaque canal", False))
+
+    # ── Goals & Table d'hôtes ─────────────────────────────────────────────────
+    c = chart_weekly_goal(rows)
+    if c:
+        charts.append((c, "Objectif hebdomadaire de réservations",
+                       "Vert = objectif atteint · Rouge = objectif manqué", True))
+
+    c = chart_table_dhotes(rows)
+    if c:
+        charts.append((c, "Réservations avec Table d'hôtes",
+                       "Nombre de séjours incluant le dîner à la table d'hôtes", True))
 
     html = build_html(kpis, charts)
 

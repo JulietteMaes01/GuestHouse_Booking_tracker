@@ -188,10 +188,13 @@ def booking_card(row, booking_type: str) -> str:
         "turnover":  "Nettoyage et préparation de la chambre entre deux clients.",
     }
 
-    repeat_tag  = f'<span class="repeat-tag">⭐ Visite {visits}</span>' if repeat else ""
-    action_html = (f'<div class="action-box">⚠ {action_texts[booking_type]}</div>'
-                   if booking_type in action_texts else "")
-    notes_html  = f'<div class="notes-box">📝 {notes}</div>' if notes else ""
+    table_dhotes = str(row.get("table_dhotes", "")).lower() in ("true", "1", "yes", "oui")
+    repeat_tag   = f'<span class="repeat-tag">⭐ Visite {visits}</span>' if repeat else ""
+    td_tag       = '<span class="repeat-tag" style="background:#FFF3E0;color:#E65100;">🍽️ Table d\'hôtes</span>' if table_dhotes else ""
+    action_html  = (f'<div class="action-box">⚠ {action_texts[booking_type]}</div>'
+                    if booking_type in action_texts else "")
+    td_action    = '<div class="action-box" style="background:#FFF3E0;border-left:4px solid #E65100;color:#E65100;">🍽️ Prévoir le dîner Table d\'hôtes pour ce séjour.</div>' if table_dhotes else ""
+    notes_html   = f'<div class="notes-box">📝 {notes}</div>' if notes else ""
 
     info_rows = ""
     if phone:
@@ -210,9 +213,9 @@ def booking_card(row, booking_type: str) -> str:
     return f"""
 <div class="card {booking_type}">
     <span class="badge {booking_type}">{badge_labels[booking_type]}</span>
-    <div class="guest-name">{name}{repeat_tag}</div>
+    <div class="guest-name">{name}{repeat_tag}{td_tag}</div>
     <div class="info-grid">{info_rows}</div>
-    {action_html}{notes_html}
+    {action_html}{td_action}{notes_html}
 </div>"""
 
 
@@ -256,6 +259,33 @@ def generate_daily_html(df: pd.DataFrame, target_date: date, logo_path: str) -> 
         cards = "".join(booking_card(row, btype) for _, row in bookings.iterrows())
         return f'<div class="section-title">{title}</div>{cards}'
 
+    def upcoming_day_section(day_offset, label):
+        """Compact arrivals summary for tomorrow / day after tomorrow."""
+        d   = target_date + timedelta(days=day_offset)
+        dt  = pd.Timestamp(d)
+        arr = df[(df["arrival_date"].dt.date == d)]
+        dep = df[(df["departure_date"].dt.date == d) & (df["arrival_date"].dt.date != d)]
+        if arr.empty and dep.empty:
+            return f'<div class="section-title">{label} — {fmt_date(d)}</div><div class="empty-msg" style="padding:16px">Rien de prévu</div>'
+        html = f'<div class="section-title">{label} — {fmt_date(d)}</div>'
+        html += "".join(booking_card(row, "arrival")   for _, row in arr.iterrows())
+        html += "".join(booking_card(row, "departure") for _, row in dep.iterrows())
+        return html
+
+    def next_week_section(week_start_date):
+        """Summary of all arrivals in the next calendar week."""
+        week_end = week_start_date + timedelta(days=6)
+        arr = df[(df["arrival_date"].dt.date >= week_start_date) &
+                 (df["arrival_date"].dt.date <= week_end)]
+        label = (f"Semaine prochaine : {week_start_date.day}/{week_start_date.month}"
+                 f" – {week_end.day}/{week_end.month}")
+        if arr.empty:
+            return f'<div class="section-title">📆 {label}</div><div class="empty-msg" style="padding:16px">Aucune arrivée la semaine prochaine</div>'
+        html = f'<div class="section-title">📆 {label}</div>'
+        html += "".join(booking_card(row, "arrival") for _, row in arr.iterrows())
+        return html
+
+    # ── Today ─────────────────────────────────────────────────────────────────
     sections = (
         section(arrivals,   "arrival",   f"⬆ Arrivées ({len(arrivals)})") +
         section(departures, "departure", f"⬇ Départs ({len(departures)})") +
@@ -266,7 +296,38 @@ def generate_daily_html(df: pd.DataFrame, target_date: date, logo_path: str) -> 
         rooms_list = ", ".join(sorted(turnover_rooms))
         sections += f'<div class="notes-box" style="margin-top:16px">🔄 Rotation de chambre aujourd\'hui : <strong>{rooms_list}</strong></div>'
 
-    body = sections if sections else '<div class="empty-msg">🌿 Pas de réservation aujourd\'hui — repos bien mérité !</div>'
+    today_body = sections if sections else '<div class="empty-msg">🌿 Pas de réservation aujourd\'hui — repos bien mérité !</div>'
+
+    # ── Upcoming days + next week ──────────────────────────────────────────────
+    tomorrow_body      = upcoming_day_section(1, "⬆ Demain")
+    day_after_body     = upcoming_day_section(2, "⬆ Après-demain")
+    next_week_start    = target_date + timedelta(days=(7 - target_date.weekday()))
+    next_week_body     = next_week_section(next_week_start)
+
+    body = f"""
+{today_body}
+<details open style="margin-top:24px">
+  <summary style="cursor:pointer;font-weight:700;color:var(--primary);font-size:.85rem;
+                  text-transform:uppercase;letter-spacing:1.5px;padding:8px 0;
+                  border-bottom:2px solid var(--accent);">
+    📅 À venir (demain &amp; après-demain)
+  </summary>
+  <div style="margin-top:12px">
+    {tomorrow_body}
+    {day_after_body}
+  </div>
+</details>
+<details style="margin-top:16px">
+  <summary style="cursor:pointer;font-weight:700;color:var(--primary);font-size:.85rem;
+                  text-transform:uppercase;letter-spacing:1.5px;padding:8px 0;
+                  border-bottom:2px solid var(--accent);">
+    📆 Semaine prochaine
+  </summary>
+  <div style="margin-top:12px">
+    {next_week_body}
+  </div>
+</details>
+"""
 
     nav = '<nav><a href="index.html">Aujourd\'hui</a> | <a href="weekly.html">Cette semaine</a></nav>'
 
@@ -285,7 +346,8 @@ def generate_daily_html(df: pd.DataFrame, target_date: date, logo_path: str) -> 
   <div class="sub">{today_str}</div>
 </header>
 {nav}
-<div class="container">{body}</div>
+<div class="container">{body}
+</div>
 <footer>Généré le {datetime.now().strftime("%d/%m/%Y à %H:%M")} · {OWNER_NAME}</footer>
 </body>
 </html>"""
@@ -316,6 +378,10 @@ def generate_weekly_html(df: pd.DataFrame, week_start: date, logo_path: str) -> 
     repeat_arrivals = arrivals_week[
         arrivals_week["repeat_guest"].astype(str).str.lower().isin(["true", "1", "yes", "oui"])
     ]
+    # Table d'hôtes this week
+    td_week = arrivals_week[
+        arrivals_week.get("table_dhotes", pd.Series(dtype=str)).astype(str).str.lower().isin(["true", "1", "yes", "oui"])
+    ] if "table_dhotes" in arrivals_week.columns else arrivals_week.iloc[0:0]
 
     # Occupancy per day
     occ_rows = ""
@@ -389,6 +455,10 @@ def generate_weekly_html(df: pd.DataFrame, week_start: date, logo_path: str) -> 
     <div class="stat-card">
       <div class="stat-value">{len(repeat_arrivals)}</div>
       <div class="stat-label">Clients Fidèles</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">{len(td_week)}</div>
+      <div class="stat-label">🍽️ Table d'hôtes</div>
     </div>
   </div>
 

@@ -2,8 +2,9 @@ name: Update Bookings & Schedule
 
 on:
   schedule:
-    - cron: '*/20 * * * *'   # every 20 minutes
-  workflow_dispatch:           # also allows manual trigger from GitHub UI
+    - cron: '*/5 6-21 * * *'   # every 5 min, 6am–9:55pm UTC (≈ 7am–11pm Belgian time)
+    - cron: '0 22-23,0-5 * * *' # hourly overnight (10pm–5am UTC)
+  workflow_dispatch:            # also allows manual trigger from GitHub UI
 
 permissions:
   contents: write              # needed to commit docs/ and processed_emails.json back
