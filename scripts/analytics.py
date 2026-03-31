@@ -21,14 +21,54 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from auth import get_worksheet
 from config import DOCS_FOLDER, GITHUB_REPO_PATH, ROOMS, COMMISSIONS, BOOKING_GOALS
 
-# ── colour palette ───────────────────────────────────────────────────────────
-BROWN   = "#5D4037"
-LIGHT   = "#D7CCC8"
-ACCENT  = "#8D6E63"
-GOLD    = "#BCAAA4"
-BG      = "#FFF8F5"
-ROOMS_COLORS = ["#5D4037", "#8D6E63", "#BCAAA4", "#D7CCC8"]
-SOURCE_COLORS = {"Booking.com": "#003580", "Website": "#5D4037", "Manual": "#8D6E63", "Unknown": "#ccc"}
+# ── colour themes ─────────────────────────────────────────────────────────────
+# Change THEME to switch the full palette. "P01" or "P03".
+THEME = "P01"
+
+_THEMES = {
+    "P01": {  # L'Ardenne Authentique
+        "brown":      "#4A5D4E",   # Vert Épicéa
+        "secondary":  "#7A8C7E",
+        "accent":     "#D4A373",   # Terre de Sienne
+        "light":      "#C9D5CB",
+        "gold":       "#A8B8AC",
+        "bg":         "#F1EFE7",   # Laine Grège
+        "text":       "#2C2C2C",   # Ardoise Fumée
+        "shadow_rgb": "74,93,78",
+        "rooms":      ["#4A5D4E", "#D4A373", "#C9D5CB", "#E8E2D8"],
+        "sources":    {"Booking.com": "#4A5D4E", "Website": "#D4A373", "Manual": "#7A8C7E", "Unknown": "#C9D5CB"},
+        "goal_hit":   "#4A5D4E",
+        "goal_miss":  "#D4A373",
+    },
+    "P03": {  # La Table d'Hôtes
+        "brown":      "#8D5B4C",   # Vieux Bordeaux
+        "secondary":  "#A67C6E",
+        "accent":     "#E6C199",   # Paille Dorée
+        "light":      "#E8D5C0",
+        "gold":       "#C4A882",
+        "bg":         "#FFF8F0",   # Fleur de Lait
+        "text":       "#3E3E3E",   # Bistre
+        "shadow_rgb": "141,91,76",
+        "rooms":      ["#8D5B4C", "#E6C199", "#E8D5C0", "#F5E8D5"],
+        "sources":    {"Booking.com": "#8D5B4C", "Website": "#E6C199", "Manual": "#A67C6E", "Unknown": "#E8D5C0"},
+        "goal_hit":   "#8D5B4C",
+        "goal_miss":  "#E6C199",
+    },
+}
+
+_t            = _THEMES[THEME]
+BROWN         = _t["brown"]
+SECONDARY     = _t["secondary"]
+LIGHT         = _t["light"]
+ACCENT        = _t["accent"]
+GOLD          = _t["gold"]
+BG            = _t["bg"]
+TEXT_COLOR    = _t["text"]
+SHADOW_RGB    = _t["shadow_rgb"]
+ROOMS_COLORS  = _t["rooms"]
+SOURCE_COLORS = _t["sources"]
+GOAL_HIT      = _t["goal_hit"]
+GOAL_MISS     = _t["goal_miss"]
 
 plt.rcParams.update({
     "font.family": "sans-serif",
@@ -457,7 +497,7 @@ def chart_revenue_per_night(rows):
 
 
 def chart_weekly_goal(rows):
-    """Bookings per week vs the annual goal — green = hit, red = missed."""
+    """Bookings per week vs the annual goal — green = hit, orange = missed."""
     from datetime import timedelta
     import calendar
 
@@ -486,7 +526,7 @@ def chart_weekly_goal(rows):
         yr_weeks = sorted(w for w in all_weeks if w.startswith(yr))
         xs   = [int(w.split("-W")[1]) for w in yr_weeks]
         vals = [weekly[w] for w in yr_weeks]
-        colors = ["#2E7D32" if v >= goal else "#C62828" for v in vals]
+        colors = [GOAL_HIT if v >= goal else GOAL_MISS for v in vals]
         bars = ax.bar(xs, vals, color=colors, width=0.7, zorder=3)
         ax.bar_label(bars, padding=2, fontsize=8, fontweight="bold")
         if goal:
@@ -629,27 +669,27 @@ def build_html(kpis, charts):
 <title>La Ferme de la Cour — Analytiques</title>
 <style>
   *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  body {{ font-family: Arial, sans-serif; background: #FFF8F5; color: #5D4037; }}
-  header {{ background: #5D4037; color: white; padding: 28px 32px 20px; }}
+  body {{ font-family: Arial, sans-serif; background: {BG}; color: {TEXT_COLOR}; }}
+  header {{ background: {BROWN}; color: white; padding: 28px 32px 20px; }}
   header h1 {{ font-size: 1.7rem; font-weight: bold; }}
   header p  {{ font-size: 0.9rem; opacity: 0.8; margin-top: 4px; }}
   .kpis {{ display: flex; flex-wrap: wrap; gap: 16px; padding: 28px 32px 8px; }}
   .kpi  {{ background: white; border-radius: 12px; padding: 18px 22px;
-           flex: 1 1 140px; box-shadow: 0 2px 8px rgba(93,64,55,.1);
+           flex: 1 1 140px; box-shadow: 0 2px 8px rgba({SHADOW_RGB},.1);
            display: flex; flex-direction: column; align-items: center; text-align: center; }}
   .kpi-icon {{ font-size: 1.7rem; margin-bottom: 6px; }}
-  .kpi-val  {{ font-size: 1.4rem; font-weight: bold; color: #5D4037; }}
-  .kpi-lbl  {{ font-size: 0.78rem; color: #8D6E63; margin-top: 3px; }}
+  .kpi-val  {{ font-size: 1.4rem; font-weight: bold; color: {BROWN}; }}
+  .kpi-lbl  {{ font-size: 0.78rem; color: {SECONDARY}; margin-top: 3px; }}
   .grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(460px, 1fr));
            gap: 20px; padding: 24px 32px 40px; }}
   .chart-card {{ background: white; border-radius: 14px; padding: 20px 22px;
-                 box-shadow: 0 2px 8px rgba(93,64,55,.1); }}
+                 box-shadow: 0 2px 8px rgba({SHADOW_RGB},.1); }}
   .chart-card.wide {{ grid-column: 1 / -1; }}
-  .chart-card h3 {{ font-size: 0.95rem; color: #8D6E63; margin-bottom: 12px;
+  .chart-card h3 {{ font-size: 0.95rem; color: {SECONDARY}; margin-bottom: 12px;
                     text-transform: uppercase; letter-spacing: .06em; }}
   .chart-card img {{ width: 100%; height: auto; border-radius: 6px; }}
   .note {{ font-size: 0.8rem; color: #9E9E9E; margin-top: 10px; font-style: italic; }}
-  footer {{ text-align: center; padding: 20px; font-size: 0.8rem; color: #BCAAA4; }}
+  footer {{ text-align: center; padding: 20px; font-size: 0.8rem; color: {GOLD}; }}
   @media (max-width: 600px) {{ .grid {{ grid-template-columns: 1fr; padding: 16px; }} }}
 </style>
 </head>
@@ -736,7 +776,7 @@ def main():
     c = chart_weekly_goal(rows)
     if c:
         charts.append((c, "Objectif hebdomadaire de réservations",
-                       "Vert = objectif atteint · Rouge = objectif manqué", True))
+                       "Vert = objectif atteint · Orange = objectif manqué", True))
 
     c = chart_table_dhotes(rows)
     if c:
