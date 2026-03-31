@@ -62,6 +62,7 @@ def booking_form():
         nationality    = request.form.get("nationality", "").strip()
         amount_str     = request.form.get("amount", "").strip()
         notes          = request.form.get("notes", "").strip()
+        table_dhotes   = request.form.get("table_dhotes") == "1"
 
         # ── Validation ────────────────────────────────────────────────────────
         errors = []
@@ -144,6 +145,7 @@ def booking_form():
             "notes":             notes,
             "repeat_guest":      False,
             "visit_count":       1,
+            "table_dhotes":      table_dhotes,
         }
 
         # ── Repeat-guest detection ────────────────────────────────────────────

@@ -106,6 +106,12 @@ COMMISSIONS = {
     "Manual":      0.00,
 }
 
+# ── Weekly booking goals (number of confirmed bookings per week) ───────────────
+BOOKING_GOALS = {
+    2025: 3,
+    2026: 5,
+}
+
 # ── Sheet column order (must match the Google Sheet header row exactly) ────────
 COLUMNS = [
     "booking_source", "booking_date", "email_type", "status", "reference",
@@ -113,5 +119,5 @@ COLUMNS = [
     "arrival_date", "departure_date", "amount",
     "guest_name", "phone", "email", "nationality", "nights",
     "cancellation_date", "modification_date", "notes",
-    "repeat_guest", "visit_count",
+    "repeat_guest", "visit_count", "table_dhotes",
 ]

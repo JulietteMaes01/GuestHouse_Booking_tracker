@@ -231,6 +231,9 @@ def parse_email(subject: str, body: str, received_ts: int) -> dict | None:
             "guest_name":        guest_name,   # for logging only
         }
 
+    # ── Table d'hôtes ─────────────────────────────────────────────────────────
+    table_dhotes = "table d" in body.lower() and "hôtes" in body.lower()
+
     # ── New Booking ───────────────────────────────────────────────────────────
     return {
         "booking_source":    booking_source,
@@ -255,6 +258,7 @@ def parse_email(subject: str, body: str, received_ts: int) -> dict | None:
         "notes":             "",
         "repeat_guest":      False,
         "visit_count":       1,
+        "table_dhotes":      table_dhotes,
     }
 
 
