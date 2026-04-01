@@ -497,11 +497,11 @@ def chart_revenue_per_night(rows):
 
 
 def chart_weekly_goal(rows):
-    """Bookings per week vs the annual goal — green = hit, orange = missed."""
-    from datetime import timedelta
-    import calendar
+    """Bookings per week vs the annual goal — primary = hit, accent = missed."""
 
-    # Group bookings by ISO week key  "YYYY-Www"
+    today = date.today()
+
+    # Group bookings by ISO week key "YYYY-Www"
     weekly = defaultdict(int)
     for r in rows:
         iso = r["arrival"].isocalendar()
@@ -510,9 +510,7 @@ def chart_weekly_goal(rows):
     if not weekly:
         return None
 
-    # Sort weeks and split by year
-    all_weeks = sorted(weekly.keys())
-    years = sorted({w.split("-")[0] for w in all_weeks})
+    years = sorted({w.split("-")[0] for w in weekly})
 
     fig, axes = plt.subplots(len(years), 1,
                              figsize=(13, 4 * len(years)),
@@ -521,31 +519,67 @@ def chart_weekly_goal(rows):
                  fontsize=14, fontweight="bold", color=BROWN, y=1.01)
 
     for ax, yr in zip(axes.flatten(), years):
-        yr_int  = int(yr)
-        goal    = BOOKING_GOALS.get(yr_int, 0)
-        yr_weeks = sorted(w for w in all_weeks if w.startswith(yr))
-        xs   = [int(w.split("-W")[1]) for w in yr_weeks]
-        vals = [weekly[w] for w in yr_weeks]
+        yr_int = int(yr)
+        goal   = BOOKING_GOALS.get(yr_int, 0)
+
+        # For current year: show weeks 1 → current week only.
+        # For past years: show the full year (all 52/53 weeks).
+        if yr_int == today.year:
+            max_week    = today.isocalendar()[1]
+            current_week = max_week
+        else:
+            max_week    = date(yr_int, 12, 28).isocalendar()[1]  # dec-28 is always in last ISO week
+            current_week = None
+
+        xs   = list(range(1, max_week + 1))
+        vals = [weekly.get(f"{yr}-W{w:02d}", 0) for w in xs]
+
         colors = [GOAL_HIT if v >= goal else GOAL_MISS for v in vals]
+
+        # Current week: keep hit/miss colour but add a thick border
+        if current_week:
+            ci = current_week - 1  # xs is 1-indexed, list is 0-indexed
+            colors[ci] = GOAL_HIT if vals[ci] >= goal else GOAL_MISS
+
         bars = ax.bar(xs, vals, color=colors, width=0.7, zorder=3)
-        ax.bar_label(bars, padding=2, fontsize=8, fontweight="bold")
+
+        # Outline the current week bar
+        if current_week:
+            bars[current_week - 1].set_edgecolor(BROWN)
+            bars[current_week - 1].set_linewidth(2.5)
+
+        # Bar labels — skip zeros to keep chart readable
+        ax.bar_label(bars, padding=2, fontsize=8, fontweight="bold",
+                     labels=[str(v) if v > 0 else "" for v in vals])
+
+        # Goal line
         if goal:
             ax.axhline(goal, color=BROWN, linestyle="--", linewidth=1.5,
-                       label=f"Objectif {yr}: {goal}/semaine")
+                       label=f"Objectif: {goal}/sem.")
             ax.legend(frameon=False, fontsize=10)
-        ax.set_title(str(yr), fontsize=12, fontweight="bold", color=BROWN)
+
+        ymax = max(vals + [goal or 0, 1]) * 1.35
+        ax.set_ylim(0, ymax)
+
+        # "Sem. XX" annotation above the current week bar
+        if current_week:
+            ax.text(current_week, ymax * 0.97,
+                    f"▼ S{current_week}",
+                    ha="center", va="top", fontsize=8,
+                    fontweight="bold", color=BROWN)
+
+        # Hit/miss count in the subplot title
+        hit  = sum(1 for v in vals if v >= goal)
+        miss = sum(1 for v in vals if v <  goal and v > 0)  # only non-zero weeks
+        ax.set_title(
+            f"{yr}   ✓ {hit} sem. atteintes   ✗ {miss} manquées",
+            fontsize=11, fontweight="bold", color=BROWN
+        )
         ax.set_xlabel("Semaine de l'année")
         ax.set_ylabel("Réservations")
-        ax.set_ylim(0, max(vals + [goal]) * 1.3)
         ax.grid(axis="y", color=LIGHT, zorder=0)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
-        # Count hit/miss
-        hit  = sum(1 for v in vals if v >= goal)
-        miss = len(vals) - hit
-        ax.text(0.99, 0.95, f"✓ {hit} sem. atteintes  ✗ {miss} manquées",
-                transform=ax.transAxes, ha="right", va="top",
-                fontsize=9, color=BROWN)
 
     fig.tight_layout()
     return _fig_to_b64(fig)
