@@ -116,10 +116,10 @@ nav a:hover  { text-decoration: underline; }
 
 # ── Room identities ────────────────────────────────────────────────────────────
 ROOM_IDENTITY = {
-    "Laurasie de la Cour": {"emoji": "🐴", "bg": "#EBF0EC", "color": "#2C3D30"},
-    "Tibert de la Cour":   {"emoji": "🦌", "bg": "#FAE8DC", "color": "#7A3F2E"},
-    "Léon de la Cour":     {"emoji": "🦚", "bg": "#F5EDD8", "color": "#7A5020"},
-    "Odette de la Cour":   {"emoji": "🦢", "bg": "#F0EDE6", "color": "#5C4A2A"},
+    "Laurasie de la Cour": {"emoji": "🐴", "bg": "#F5E0E3", "color": "#7A3040"},  # rose/pink
+    "Tibert de la Cour":   {"emoji": "🦌", "bg": "#FAE8DC", "color": "#7A3F2E"},  # warm orange (unchanged)
+    "Léon de la Cour":     {"emoji": "🦚", "bg": "#DDE8E5", "color": "#2A4A44"},  # blue-green
+    "Odette de la Cour":   {"emoji": "🦢", "bg": "#F5F2EE", "color": "#4A3828"},  # off-white
 }
 
 def room_badge_html(rooms_str: str) -> str:
