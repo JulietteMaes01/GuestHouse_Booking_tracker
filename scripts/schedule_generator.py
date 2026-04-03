@@ -114,6 +114,29 @@ nav a:hover  { text-decoration: underline; }
 }
 """
 
+# ── Room identities ────────────────────────────────────────────────────────────
+ROOM_IDENTITY = {
+    "Laurasie de la Cour": {"emoji": "🐴", "bg": "#EBF0EC", "color": "#2C3D30"},
+    "Tibert de la Cour":   {"emoji": "🦌", "bg": "#FAE8DC", "color": "#7A3F2E"},
+    "Léon de la Cour":     {"emoji": "🦚", "bg": "#F5EDD8", "color": "#7A5020"},
+    "Odette de la Cour":   {"emoji": "🦢", "bg": "#F0EDE6", "color": "#5C4A2A"},
+}
+
+def room_badge_html(rooms_str: str) -> str:
+    """Return one coloured pill per room in rooms_str."""
+    badges = []
+    for room in [r.strip() for r in rooms_str.split(",")]:
+        ident = ROOM_IDENTITY.get(room, {"emoji": "🛏", "bg": "#F1EFE7", "color": "#4A5D4E"})
+        short = room.replace(" de la Cour", "")
+        badges.append(
+            f'<span style="display:inline-flex;align-items:center;gap:5px;'
+            f'background:{ident["bg"]};color:{ident["color"]};'
+            f'padding:5px 14px;border-radius:20px;font-size:.9rem;font-weight:700;'
+            f'margin:6px 4px 10px 0;">'
+            f'{ident["emoji"]} {short}</span>'
+        )
+    return "".join(badges)
+
 
 # ── Data loading ───────────────────────────────────────────────────────────────
 
@@ -190,10 +213,10 @@ def booking_card(row, booking_type: str) -> str:
 
     table_dhotes = str(row.get("table_dhotes", "")).lower() in ("true", "1", "yes", "oui")
     repeat_tag   = f'<span class="repeat-tag">⭐ Visite {visits}</span>' if repeat else ""
-    td_tag       = '<span class="repeat-tag" style="background:#FFF3E0;color:#E65100;">🍽️ Table d\'hôtes</span>' if table_dhotes else ""
+    td_tag       = '<span class="repeat-tag" style="background:#F5EDD8;color:#7A5020;">🍽️ Table d\'hôtes</span>' if table_dhotes else ""
     action_html  = (f'<div class="action-box">⚠ {action_texts[booking_type]}</div>'
                     if booking_type in action_texts else "")
-    td_action    = '<div class="action-box" style="background:#FFF3E0;border-left:4px solid #E65100;color:#E65100;">🍽️ Prévoir le dîner Table d\'hôtes pour ce séjour.</div>' if table_dhotes else ""
+    td_action    = '<div class="action-box" style="background:#FDF3E8;color:#7A4A1E;">🍽️ Prévoir le dîner Table d\'hôtes pour ce séjour.</div>' if table_dhotes else ""
     notes_html   = f'<div class="notes-box">📝 {notes}</div>' if notes else ""
 
     info_rows = ""
@@ -204,7 +227,6 @@ def booking_card(row, booking_type: str) -> str:
     if nat:
         info_rows += f'<span class="info-label">Nationalité</span><span class="info-value">{flag} {nat}</span>'
     info_rows += f'<span class="info-label">Séjour</span><span class="info-value">{arr_str} → {dep_str} ({nights} nuit{"s" if str(nights) != "1" else ""})</span>'
-    info_rows += f'<span class="info-label">Chambre</span><span class="info-value">{rooms}</span>'
     if source:
         info_rows += f'<span class="info-label">Source</span><span class="info-value">{source}</span>'
     if amount:
@@ -214,6 +236,7 @@ def booking_card(row, booking_type: str) -> str:
 <div class="card {booking_type}">
     <span class="badge {booking_type}">{badge_labels[booking_type]}</span>
     <div class="guest-name">{name}{repeat_tag}{td_tag}</div>
+    {room_badge_html(rooms)}
     <div class="info-grid">{info_rows}</div>
     {action_html}{td_action}{notes_html}
 </div>"""
