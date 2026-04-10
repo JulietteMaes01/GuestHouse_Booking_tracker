@@ -44,7 +44,15 @@ pip install -r ../requirements.txt
    - Application type: **Desktop app**
    - Click Create → **Download JSON**
 5. Rename the file to `credentials.json`
-6. Put it in the `scripts/` folder (it is gitignored — never commit it)
+6. Create a folder called `creds/` **next to** (not inside) the repo folder, and put the file there:
+   ```
+   La Ferme de la Cour/          ← parent folder
+     creds/
+       credentials.json          ← here
+     GuestHouse_Booking_tracker/ ← the repo
+       scripts/
+   ```
+   (It is gitignored — it will never be committed accidentally)
 
 > If you see "Access blocked" when authenticating:
 > Go to **APIs & Services → OAuth consent screen → Test users → + Add Users**
@@ -108,7 +116,7 @@ cd scripts
 python app.py
 ```
 
-Then open http://localhost:5000 in any browser.
+Then open http://localhost:5051 in any browser.
 
 **From her phone or tablet (same Wi-Fi):**
 When the app starts, the terminal prints a local network URL like `http://192.168.x.x:5000`.
@@ -184,7 +192,7 @@ launchctl load ~/Library/LaunchAgents/com.lfdlc.dailyupdate.plist
 |---|---|
 | `credentials.json not found` | Download it from Google Cloud Console (see step 2) |
 | `Access blocked: app not verified` | Add the Gmail address as a Test User in OAuth consent screen |
-| `token.pickle` expired | Delete `scripts/token.pickle` and re-run `python setup.py` |
+| `token.pickle` expired | Delete `creds/token.pickle` (next to the repo) and re-run `python setup.py` |
 | Email not parsed | Check that the email is from `no-reply@elloha.com` and has a reference like `\| U...` or `\| P...` |
 | Git push fails | Make sure you're authenticated with GitHub (`gh auth login` or SSH key) |
 | Flask form not saving | Check that `token.pickle` exists and has Sheets scope |

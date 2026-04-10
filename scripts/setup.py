@@ -21,11 +21,15 @@ print("\n" + "═" * 60)
 print("  La Ferme de la Cour — Setup")
 print("═" * 60)
 
-CREDS = "credentials.json"
+from config import CREDENTIALS_FILE
+_CREDS_DIR = os.path.dirname(CREDENTIALS_FILE)
 
-if not os.path.exists(CREDS):
+if not os.path.exists(CREDENTIALS_FILE):
     print(f"""
-[!] '{CREDS}' not found.
+[!] 'credentials.json' not found.
+
+Expected location:
+    {CREDENTIALS_FILE}
 
 To create it:
   1. Go to  https://console.cloud.google.com/
@@ -36,16 +40,16 @@ To create it:
      (Search for each in the top search bar → click Enable)
   4. Go to  APIs & Services → Credentials
   5. Click  + Create Credentials → OAuth client ID
-  6. Application type: Desktop app
+  6. Application type: Desktop app   ← IMPORTANT: must be "Desktop app", not "Web"
   7. Click Create, then  ↓ Download JSON
   8. Rename the downloaded file to  credentials.json
-  9. Move it into this folder:
-       {os.path.abspath('.')}
+  9. Create this folder if it does not exist and move the file there:
+       {_CREDS_DIR}
  10. Re-run this script.
 """)
     sys.exit(1)
 
-print(f"\n  ✓  credentials.json found")
+print(f"\n  ✓  credentials.json found  ({CREDENTIALS_FILE})")
 
 # ── Step 2: OAuth flow ────────────────────────────────────────────────────────
 print("\n  [2/4] Authenticating with Google …")
