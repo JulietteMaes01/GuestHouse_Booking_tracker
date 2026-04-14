@@ -19,7 +19,6 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 
 from auth import get_worksheet
 from config import ROOMS, NATIONALITIES, COLUMNS
-from email_parser import detect_repeat_guest
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(message)s")
 log = logging.getLogger(__name__)
@@ -48,6 +47,35 @@ def generate_reference(worksheet) -> str:
 
 def row_dict_to_list(row: dict) -> list:
     return [row.get(col, "") for col in COLUMNS]
+
+
+def _normalize_phone(phone) -> str:
+    """Strip all non-digit characters."""
+    return re.sub(r"\D", "", str(phone or ""))
+
+
+def detect_repeat_guest(new_row: dict, existing_records: list) -> tuple:
+    """Return (is_repeat, visit_count) by matching on email or normalised phone."""
+    new_email = str(new_row.get("email") or "").lower()
+    new_phone = _normalize_phone(new_row.get("phone") or "")
+    use_email = bool(new_email) and "@guest.booking.com" not in new_email
+
+    matches   = 0
+    seen_refs = set()
+
+    for rec in existing_records:
+        ref = str(rec.get("reference") or "")
+        if ref in seen_refs:
+            continue
+        seen_refs.add(ref)
+        existing_email = str(rec.get("email") or "").lower()
+        existing_phone = _normalize_phone(rec.get("phone") or "")
+        if use_email and existing_email and existing_email == new_email:
+            matches += 1
+        elif new_phone and existing_phone and existing_phone == new_phone:
+            matches += 1
+
+    return matches > 0, matches + 1
 
 
 @app.route("/", methods=["GET", "POST"])
