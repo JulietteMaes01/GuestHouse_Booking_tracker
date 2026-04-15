@@ -259,6 +259,7 @@ def parse_email(subject: str, body: str, received_ts: int) -> dict | None:
         "repeat_guest":      False,
         "visit_count":       1,
         "table_dhotes":      table_dhotes,
+        "breakfast":         True,
     }
 
 

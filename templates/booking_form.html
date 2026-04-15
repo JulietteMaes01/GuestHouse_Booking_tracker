@@ -77,7 +77,8 @@
     border-color: var(--primary);
     background: #FBE9E7;
   }
-  .room-option input[type="checkbox"] {
+  .room-option input[type="checkbox"],
+  .room-option input[type="radio"] {
     width: 20px; height: 20px; min-width: 20px;
     accent-color: var(--primary); cursor: pointer;
   }
@@ -140,9 +141,26 @@
 
   <form method="POST" action="/" novalidate>
 
+    <!-- ── Source de réservation ─────────────────────────────── -->
+    <div class="form-group">
+      <label>Source de réservation <span class="required">*</span></label>
+      <div class="rooms-grid">
+        {% for src in manual_sources %}
+        <label class="room-option">
+          <input type="radio" name="booking_source" value="{{ src }}"
+            {% if (form_data.get('booking_source') or 'Email/phone') == src %}checked{% endif %}>
+          {% if src == 'Email/phone' %}📞{% elif src == 'Social Deal' %}🎟️{% elif src == 'Expedia' %}✈️{% endif %}
+          {{ src }}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <hr class="divider">
+
     <!-- ── Chambres ────────────────────────────────────────────── -->
     <div class="form-group">
-      <label>Chambre(s) <span class="required">*</span></label>
+      <label>Chambre(s) <span class="optional">(ou service repas uniquement)</span></label>
       <div class="rooms-grid">
         {% for room in rooms %}
         <label class="room-option">
@@ -163,9 +181,9 @@
         <input type="date" id="arrival_date" name="arrival_date" required
                value="{{ form_data.get('arrival_date', '') }}">
       </div>
-      <div class="form-group">
-        <label for="departure_date">Départ <span class="required">*</span></label>
-        <input type="date" id="departure_date" name="departure_date" required
+      <div class="form-group" id="departure_group">
+        <label for="departure_date">Départ <span class="required">*</span> <span class="optional" id="departure_hint" style="display:none">(auto si repas seul)</span></label>
+        <input type="date" id="departure_date" name="departure_date"
                value="{{ form_data.get('departure_date', '') }}">
       </div>
     </div>
@@ -221,9 +239,18 @@
     <!-- ── Table d'hôtes ──────────────────────────────────────── -->
     <div class="form-group">
       <label class="room-option" style="cursor:pointer;">
-        <input type="checkbox" name="table_dhotes" value="1"
+        <input type="checkbox" name="table_dhotes" value="1" id="table_dhotes"
                {% if form_data.get('table_dhotes') == '1' %}checked{% endif %}>
         🍽️ Table d'hôtes incluse (dîner)
+      </label>
+    </div>
+
+    <!-- ── Petit-déjeuner ────────────────────────────────────── -->
+    <div class="form-group">
+      <label class="room-option" style="cursor:pointer;">
+        <input type="checkbox" name="breakfast" value="1" id="breakfast"
+               {% if form_data.get('breakfast') == '1' %}checked{% endif %}>
+        🥐 Petit-déjeuner inclus
       </label>
     </div>
 
@@ -239,10 +266,40 @@
 </div>
 
 <script>
+  function isMealOnly() {
+    const hasRoom = document.querySelectorAll('input[name="rooms"]:checked').length > 0;
+    const hasMeal = document.getElementById('table_dhotes').checked ||
+                    document.getElementById('breakfast').checked;
+    return !hasRoom && hasMeal;
+  }
+
+  function updateMealMode() {
+    const deptGroup = document.getElementById('departure_group');
+    const deptInput = document.getElementById('departure_date');
+    const deptHint  = document.getElementById('departure_hint');
+    const arrInput  = document.getElementById('arrival_date');
+
+    if (isMealOnly()) {
+      deptGroup.style.opacity = '0.4';
+      deptInput.disabled = true;
+      deptInput.value = arrInput.value;
+      deptHint.style.display = '';
+    } else {
+      deptGroup.style.opacity = '';
+      deptInput.disabled = false;
+      deptHint.style.display = 'none';
+    }
+    updateNights();
+  }
+
   function updateNights() {
     const a = document.getElementById('arrival_date').value;
     const d = document.getElementById('departure_date').value;
     const pill = document.getElementById('nights_pill');
+    if (isMealOnly()) {
+      pill.style.display = 'none';
+      return;
+    }
     if (a && d) {
       const nights = Math.round((new Date(d) - new Date(a)) / 86400000);
       if (nights > 0) {
@@ -255,14 +312,18 @@
   }
 
   document.getElementById('arrival_date').addEventListener('change', function () {
-    // Set min departure = arrival
     document.getElementById('departure_date').min = this.value;
-    updateNights();
+    updateMealMode();
   });
   document.getElementById('departure_date').addEventListener('change', updateNights);
+  document.querySelectorAll('input[name="rooms"]').forEach(cb =>
+    cb.addEventListener('change', updateMealMode)
+  );
+  document.getElementById('table_dhotes').addEventListener('change', updateMealMode);
+  document.getElementById('breakfast').addEventListener('change', updateMealMode);
 
   // Run on page load in case form was re-filled after error
-  updateNights();
+  updateMealMode();
 </script>
 </body>
 </html>
