@@ -6,17 +6,19 @@
 <title>Nouvelle Réservation — La Ferme de la Cour</title>
 <style>
   :root {
-    --primary:  #5D4037;
-    --light:    #EFEBE9;
-    --accent:   #A1887F;
-    --text:     #3E2723;
-    --red:      #C62828;
-    --green:    #2E7D32;
+    --primary:   #4A5D4E;
+    --secondary: #7A8C7E;
+    --accent:    #D4A373;
+    --text:      #2C2C2C;
+    --bg:        #F1EFE7;
+    --card-bg:   #fff;
+    --red:       #C62828;
+    --green:     #2E7D32;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: 'Segoe UI', Tahoma, Verdana, sans-serif;
-    background: var(--light);
+    background: var(--bg);
     color: var(--text);
     padding: 0 0 40px;
   }
@@ -26,18 +28,18 @@
     text-align: center;
     padding: 20px 16px;
     border-radius: 0 0 12px 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,.1);
     margin-bottom: 0;
   }
   header img { max-height: 65px; margin-bottom: 8px; display: block; margin-inline: auto; }
   header h1  { font-size: 1.4rem; }
-  header p   { font-size: .9rem; opacity: .85; margin-top: 4px; }
+  header p   { font-size: .9rem; opacity: .85; margin-top: 4px; font-style: italic; }
   .container { max-width: 580px; margin: 0 auto; padding: 0 16px; }
 
   /* ── Tabs ─────────────────────────────────────────────────────────────── */
   .tabs {
     display: flex;
-    background: #4A2E26;
-    border-radius: 0 0 0 0;
+    background: #2E3D31;
     overflow: hidden;
     margin-bottom: 24px;
   }
@@ -45,7 +47,7 @@
     flex: 1;
     padding: 14px 8px;
     background: transparent;
-    color: rgba(255,255,255,.65);
+    color: rgba(255,255,255,.6);
     border: none;
     font-size: .9rem;
     font-weight: 600;
@@ -54,13 +56,13 @@
     text-align: center;
   }
   .tab-btn.active {
-    background: var(--light);
+    background: var(--bg);
     color: var(--primary);
     border-radius: 8px 8px 0 0;
     margin: 6px 4px 0;
     padding: 10px 8px 14px;
   }
-  .tab-btn:hover:not(.active) { background: rgba(255,255,255,.1); }
+  .tab-btn:hover:not(.active) { background: rgba(255,255,255,.08); }
 
   /* ── Tab panels ───────────────────────────────────────────────────────── */
   .tab-panel { display: none; }
@@ -86,11 +88,11 @@
   textarea {
     width: 100%;
     padding: 13px 14px;
-    border: 2px solid #D7CCC8;
+    border: 2px solid #C8D5CA;
     border-radius: 8px;
     font-size: 16px;   /* 16px prevents iOS zoom */
     color: var(--text);
-    background: #fff;
+    background: var(--card-bg);
     transition: border-color .2s;
     -webkit-appearance: none;
   }
@@ -100,26 +102,36 @@
   }
   textarea { resize: vertical; min-height: 80px; }
 
-  /* ── Room / option checkboxes ─────────────────────────────────────────── */
-  .rooms-grid  { display: grid; gap: 8px; }
-  .room-option { display: flex; align-items: center; gap: 12px;
-                 background: #fff; border: 2px solid #D7CCC8;
-                 border-radius: 8px; padding: 12px 14px; cursor: pointer;
-                 font-size: .95rem; transition: border-color .15s, background .15s; }
-  .room-option:has(input:checked) {
-    border-color: var(--primary);
-    background: #FBE9E7;
+  /* ── Option rows (checkboxes / radios) ────────────────────────────────── */
+  .options-grid { display: grid; gap: 8px; }
+  .option-row {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--card-bg); border: 2px solid #C8D5CA;
+    border-radius: 8px; padding: 12px 14px; cursor: pointer;
+    font-size: .95rem; transition: border-color .15s, background .15s;
   }
-  .room-option input[type="checkbox"],
-  .room-option input[type="radio"] {
+  .option-row:has(input:checked) {
+    border-color: var(--primary);
+    background: #EBF0EC;
+  }
+  .option-row input[type="checkbox"],
+  .option-row input[type="radio"] {
     width: 20px; height: 20px; min-width: 20px;
     accent-color: var(--primary); cursor: pointer;
+  }
+
+  /* ── Dietary section ──────────────────────────────────────────────────── */
+  .section-label {
+    font-size: .8rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--secondary);
+    margin: 20px 0 10px; padding-bottom: 4px;
+    border-bottom: 2px solid var(--accent);
   }
 
   /* ── Nights pill ──────────────────────────────────────────────────────── */
   .nights-pill {
     display: none;
-    background: #FBE9E7;
+    background: #EBF0EC;
     color: var(--primary);
     font-weight: 700;
     font-size: .95rem;
@@ -132,7 +144,7 @@
   /* ── Date row ─────────────────────────────────────────────────────────── */
   .date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
-  /* ── Submit / action buttons ──────────────────────────────────────────── */
+  /* ── Submit buttons ───────────────────────────────────────────────────── */
   button[type="submit"] {
     width: 100%;
     padding: 16px;
@@ -146,15 +158,15 @@
     margin-top: 6px;
     transition: background .2s;
   }
-  button[type="submit"]:active { background: #4E342E; }
-  .btn-email { background: #4A5D4E; }
-  .btn-email:active { background: #3A4D3E; }
+  button[type="submit"]:active { background: #2E3D31; }
+  .btn-update { background: #5D6E4E; }
+  .btn-update:active { background: #3D4E2E; }
 
   /* ── Divider ──────────────────────────────────────────────────────────── */
-  .divider { border: none; border-top: 1px solid #D7CCC8; margin: 24px 0; }
+  .divider { border: none; border-top: 1px solid #C8D5CA; margin: 22px 0; }
 
   /* ── Helper text ──────────────────────────────────────────────────────── */
-  .help-text { font-size: .85rem; color: #888; line-height: 1.5; margin-bottom: 18px; }
+  .help-text { font-size: .85rem; color: #666; line-height: 1.5; margin-bottom: 18px; }
 
   @media (max-width: 480px) {
     .date-row { grid-template-columns: 1fr; }
@@ -196,9 +208,9 @@
       {% set r_src = form_data.get('booking_source') if active_tab == 'room' else '' %}
       <div class="form-group">
         <label>Source de réservation <span class="required">*</span></label>
-        <div class="rooms-grid">
+        <div class="options-grid">
           {% for src in manual_sources %}
-          <label class="room-option">
+          <label class="option-row">
             <input type="radio" name="booking_source" value="{{ src }}"
               {% if r_src == src or (not r_src and src == 'Email/phone') %}checked{% endif %}>
             {% if src == 'Email/phone' %}📞{% elif src == 'Social Deal' %}🎟️{% elif src == 'Expedia' %}✈️{% endif %}
@@ -213,9 +225,9 @@
       <!-- Rooms -->
       <div class="form-group">
         <label>Chambre(s) <span class="required">*</span></label>
-        <div class="rooms-grid">
+        <div class="options-grid">
           {% for room in rooms %}
-          <label class="room-option">
+          <label class="option-row">
             <input type="checkbox" name="rooms" value="{{ room }}"
               {% if active_tab == 'room' and room in (form_data.getlist('rooms') if form_data else []) %}checked{% endif %}>
             {{ room }}
@@ -285,14 +297,14 @@
                value="{{ form_data.get('amount', '') if active_tab == 'room' else '' }}">
       </div>
       <div class="form-group">
-        <label class="room-option" style="cursor:pointer;">
+        <label class="option-row" style="cursor:pointer;">
           <input type="checkbox" name="table_dhotes" value="1" id="r_table_dhotes"
                  {% if active_tab == 'room' and form_data.get('table_dhotes') == '1' %}checked{% endif %}>
           🍽️ Table d'hôtes incluse (dîner)
         </label>
       </div>
       <div class="form-group">
-        <label class="room-option" style="cursor:pointer;">
+        <label class="option-row" style="cursor:pointer;">
           <input type="checkbox" name="breakfast" value="1" id="r_breakfast"
                  {% if active_tab == 'room' and form_data.get('breakfast') == '1' %}checked{% endif %}>
           🥐 Petit-déjeuner inclus
@@ -316,37 +328,24 @@
     <form method="POST" action="/" novalidate>
       <input type="hidden" name="form_type" value="meal">
 
-      <!-- Source -->
-      {% set m_src = form_data.get('booking_source') if active_tab == 'meal' else '' %}
-      <div class="form-group">
-        <label>Source de réservation <span class="required">*</span></label>
-        <div class="rooms-grid">
-          {% for src in manual_sources %}
-          <label class="room-option">
-            <input type="radio" name="booking_source" value="{{ src }}"
-              {% if m_src == src or (not m_src and src == 'Email/phone') %}checked{% endif %}>
-            {% if src == 'Email/phone' %}📞{% elif src == 'Social Deal' %}🎟️{% elif src == 'Expedia' %}✈️{% endif %}
-            {{ src }}
-          </label>
-          {% endfor %}
-        </div>
-      </div>
-
-      <hr class="divider">
-
       <!-- Meal services -->
       <div class="form-group">
         <label>Service(s) repas <span class="required">*</span></label>
-        <div class="rooms-grid">
-          <label class="room-option" style="cursor:pointer;">
+        <div class="options-grid">
+          <label class="option-row" style="cursor:pointer;">
             <input type="checkbox" name="table_dhotes" value="1" id="m_table_dhotes"
                    {% if active_tab == 'meal' and form_data.get('table_dhotes') == '1' %}checked{% endif %}>
             🍽️ Table d'hôtes (dîner)
           </label>
-          <label class="room-option" style="cursor:pointer;">
+          <label class="option-row" style="cursor:pointer;">
             <input type="checkbox" name="breakfast" value="1" id="m_breakfast"
                    {% if active_tab == 'meal' and form_data.get('breakfast') == '1' %}checked{% endif %}>
-            🥐 Petit-déjeuner / brunch
+            🥐 Petit-déjeuner
+          </label>
+          <label class="option-row" style="cursor:pointer;">
+            <input type="checkbox" name="brunch" value="1" id="m_brunch"
+                   {% if active_tab == 'meal' and form_data.get('brunch') == '1' %}checked{% endif %}>
+            ☕ Brunch
           </label>
         </div>
       </div>
@@ -396,6 +395,39 @@
 
       <hr class="divider">
 
+      <!-- Dietary restrictions -->
+      <div class="section-label">Régime alimentaire &amp; allergies</div>
+      <div class="options-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 10px;">
+        <label class="option-row" style="cursor:pointer;">
+          <input type="checkbox" name="diet_vegan" value="1" id="m_diet_vegan"
+                 {% if active_tab == 'meal' and form_data.get('diet_vegan') == '1' %}checked{% endif %}>
+          🌱 Végétalien
+        </label>
+        <label class="option-row" style="cursor:pointer;">
+          <input type="checkbox" name="diet_vegetarian" value="1" id="m_diet_vegetarian"
+                 {% if active_tab == 'meal' and form_data.get('diet_vegetarian') == '1' %}checked{% endif %}>
+          🥦 Végétarien
+        </label>
+        <label class="option-row" style="cursor:pointer;">
+          <input type="checkbox" name="diet_gluten_free" value="1" id="m_diet_gluten_free"
+                 {% if active_tab == 'meal' and form_data.get('diet_gluten_free') == '1' %}checked{% endif %}>
+          🌾 Sans gluten
+        </label>
+        <label class="option-row" style="cursor:pointer;">
+          <input type="checkbox" name="diet_dairy_free" value="1" id="m_diet_dairy_free"
+                 {% if active_tab == 'meal' and form_data.get('diet_dairy_free') == '1' %}checked{% endif %}>
+          🥛 Sans lactose
+        </label>
+      </div>
+      <div class="form-group">
+        <label for="m_diet_other">Autres allergies / restrictions <span class="optional">(facultatif)</span></label>
+        <input type="text" id="m_diet_other" name="diet_other"
+               placeholder="ex. noix, crustacés, végane strict…"
+               value="{{ form_data.get('diet_other', '') if active_tab == 'meal' else '' }}">
+      </div>
+
+      <hr class="divider">
+
       <div class="form-group">
         <label for="m_amount">Montant Total (€) <span class="optional">(facultatif)</span></label>
         <input type="number" id="m_amount" name="amount" step="0.01" min="0"
@@ -405,7 +437,7 @@
       <div class="form-group">
         <label for="m_notes">Notes <span class="optional">(facultatif)</span></label>
         <textarea id="m_notes" name="notes"
-                  placeholder="Infos utiles sur le client ou le repas…">{{ form_data.get('notes', '') if active_tab == 'meal' else '' }}</textarea>
+                  placeholder="Infos supplémentaires…">{{ form_data.get('notes', '') if active_tab == 'meal' else '' }}</textarea>
       </div>
 
       <button type="submit">Enregistrer le Repas</button>
@@ -428,7 +460,6 @@
         <label for="identifier">Référence ou email Booking.com <span class="required">*</span></label>
         <input type="text" id="identifier" name="identifier"
                placeholder="ex. U2603113069  ou  abc123@guest.booking.com"
-               style="text-transform:none"
                autocorrect="off" autocapitalize="off">
       </div>
       <div class="form-group">
@@ -436,7 +467,7 @@
         <input type="email" id="new_email" name="new_email"
                placeholder="client@exemple.com">
       </div>
-      <button type="submit" class="btn-email">Mettre à jour l'email</button>
+      <button type="submit" class="btn-update">Mettre à jour l'email</button>
     </form>
   </div><!-- /panel-email -->
 
@@ -449,7 +480,6 @@
       document.getElementById('panel-' + t).classList.toggle('active', t === tab);
       document.getElementById('tab-btn-' + t).classList.toggle('active', t === tab);
     });
-    // Update URL without reloading
     const url = new URL(window.location.href);
     url.searchParams.set('tab', tab);
     history.replaceState(null, '', url.toString());
@@ -476,6 +506,14 @@
     updateNights();
   });
   document.getElementById('r_departure_date').addEventListener('change', updateNights);
+
+  // ── Meal tab: brunch and petit-déjeuner are mutually exclusive ─────────
+  document.getElementById('m_brunch').addEventListener('change', function () {
+    if (this.checked) document.getElementById('m_breakfast').checked = false;
+  });
+  document.getElementById('m_breakfast').addEventListener('change', function () {
+    if (this.checked) document.getElementById('m_brunch').checked = false;
+  });
 
   // ── Activate correct tab on load ──────────────────────────────────────
   (function () {
