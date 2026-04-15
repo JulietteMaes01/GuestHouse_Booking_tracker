@@ -20,7 +20,7 @@ from datetime import datetime, timedelta, date
 import pandas as pd
 
 from auth import get_worksheet
-from config import ROOMS, GITHUB_REPO_PATH, DOCS_FOLDER, OWNER_NAME
+from config import ROOMS, GITHUB_REPO_PATH, DOCS_FOLDER, OWNER_NAME, PREPAID_SOURCES
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(message)s")
 log = logging.getLogger(__name__)
@@ -174,25 +174,26 @@ def get_rooms_for_booking(row) -> str:
         v = str(row.get(col, "") or "").strip()
         if v:
             parts.append(v)
-    return " + ".join(parts) if parts else "Chambre inconnue"
+    return " + ".join(parts)
 
 
 # ── Card HTML ──────────────────────────────────────────────────────────────────
 
 def booking_card(row, booking_type: str) -> str:
     """Generate HTML card for one booking."""
-    rooms      = get_rooms_for_booking(row)
-    name       = str(row.get("guest_name", "") or "Invité")
-    phone      = str(row.get("phone", "") or "")
-    email      = str(row.get("email", "") or "")
-    nat        = str(row.get("nationality", "") or "")
-    flag       = flag_for(nat)
-    amount     = row.get("amount", "")
-    source     = str(row.get("booking_source", "") or "")
-    nights     = row.get("nights", "")
-    notes      = str(row.get("notes", "") or "")
-    repeat     = str(row.get("repeat_guest", "")).lower() in ("true", "1", "yes", "oui")
-    visits     = row.get("visit_count", 1)
+    rooms        = get_rooms_for_booking(row)
+    is_meal_only = not rooms
+    name         = str(row.get("guest_name", "") or "Hôte")
+    phone        = str(row.get("phone", "") or "")
+    email        = str(row.get("email", "") or "")
+    nat          = str(row.get("nationality", "") or "")
+    flag         = flag_for(nat)
+    amount       = row.get("amount", "")
+    source       = str(row.get("booking_source", "") or "")
+    nights       = row.get("nights", "")
+    notes        = str(row.get("notes", "") or "")
+    repeat       = str(row.get("repeat_guest", "")).lower() in ("true", "1", "yes", "oui")
+    visits       = row.get("visit_count", 1)
 
     arr = row["arrival_date"]
     dep = row["departure_date"]
@@ -206,18 +207,41 @@ def booking_card(row, booking_type: str) -> str:
         "turnover":  "🔄 Rotation",
     }
     action_texts = {
-        "arrival":   "Préparer la chambre pour l'arrivée des invités.",
+        "arrival":   "Préparer la chambre pour l'arrivée des hôtes.",
         "departure": "C'est leur dernier jour. Prévoir le nettoyage de la chambre.",
         "turnover":  "Nettoyage et préparation de la chambre entre deux clients.",
     }
 
     table_dhotes = str(row.get("table_dhotes", "")).lower() in ("true", "1", "yes", "oui")
-    repeat_tag   = f'<span class="repeat-tag">⭐ Visite {visits}</span>' if repeat else ""
-    td_tag       = '<span class="repeat-tag" style="background:#F5EDD8;color:#7A5020;">🍽️ Table d\'hôtes</span>' if table_dhotes else ""
-    action_html  = (f'<div class="action-box">⚠ {action_texts[booking_type]}</div>'
-                    if booking_type in action_texts else "")
-    td_action    = '<div class="action-box" style="background:#FDF3E8;color:#7A4A1E;">🍽️ Prévoir le dîner Table d\'hôtes pour ce séjour.</div>' if table_dhotes else ""
-    notes_html   = f'<div class="notes-box">📝 {notes}</div>' if notes else ""
+    breakfast    = str(row.get("breakfast",    "")).lower() in ("true", "1", "yes", "oui")
+
+    repeat_tag  = f'<span class="repeat-tag">⭐ Visite {visits}</span>' if repeat else ""
+    td_tag      = '<span class="repeat-tag" style="background:#F5EDD8;color:#7A5020;">🍽️ Table d\'hôtes</span>' if table_dhotes else ""
+    bf_tag      = '<span class="repeat-tag" style="background:#FFFDE7;color:#F57F17;">🥐 Petit-déjeuner</span>' if breakfast else ""
+
+    if source in PREPAID_SOURCES:
+        payment_tag = '<span class="repeat-tag" style="background:#E8F5E9;color:#2E7D32;">✅ Payé</span>'
+    elif source:
+        payment_tag = '<span class="repeat-tag" style="background:#FFF3E0;color:#E65100;">💳 À régler</span>'
+    else:
+        payment_tag = ""
+
+    # Room preparation action only relevant when there is a room
+    action_html = ""
+    if booking_type in action_texts and not is_meal_only:
+        action_html = f'<div class="action-box">⚠ {action_texts[booking_type]}</div>'
+    td_action  = '<div class="action-box" style="background:#FDF3E8;color:#7A4A1E;">🍽️ Prévoir le dîner Table d\'hôtes pour ce séjour.</div>' if table_dhotes else ""
+    bf_action  = '<div class="action-box" style="background:#FFFDE7;color:#B45309;">🥐 Prévoir le petit-déjeuner pour ce séjour.</div>' if breakfast else ""
+    notes_html = f'<div class="notes-box">📝 {notes}</div>' if notes else ""
+
+    # Room badge — or a "🍽️ Repas" badge for meal-only entries
+    if is_meal_only:
+        rooms_html = ('<span style="display:inline-flex;align-items:center;gap:5px;'
+                      'background:#FFF3E0;color:#E65100;'
+                      'padding:5px 14px;border-radius:20px;font-size:.9rem;font-weight:700;'
+                      'margin:6px 4px 10px 0;">🍽️ Repas</span>')
+    else:
+        rooms_html = room_badge_html(rooms)
 
     info_rows = ""
     if phone:
@@ -226,7 +250,10 @@ def booking_card(row, booking_type: str) -> str:
         info_rows += f'<span class="info-label">Email</span><span class="info-value">{email}</span>'
     if nat:
         info_rows += f'<span class="info-label">Nationalité</span><span class="info-value">{flag} {nat}</span>'
-    info_rows += f'<span class="info-label">Séjour</span><span class="info-value">{arr_str} → {dep_str} ({nights} nuit{"s" if str(nights) != "1" else ""})</span>'
+    if str(nights) == "0" or arr_str == dep_str:
+        info_rows += f'<span class="info-label">Date</span><span class="info-value">{arr_str}</span>'
+    else:
+        info_rows += f'<span class="info-label">Séjour</span><span class="info-value">{arr_str} → {dep_str} ({nights} nuit{"s" if str(nights) != "1" else ""})</span>'
     if source:
         info_rows += f'<span class="info-label">Source</span><span class="info-value">{source}</span>'
     if amount:
@@ -235,10 +262,10 @@ def booking_card(row, booking_type: str) -> str:
     return f"""
 <div class="card {booking_type}">
     <span class="badge {booking_type}">{badge_labels[booking_type]}</span>
-    <div class="guest-name">{name}{repeat_tag}{td_tag}</div>
-    {room_badge_html(rooms)}
+    <div class="guest-name">{name}{repeat_tag}{td_tag}{bf_tag}{payment_tag}</div>
+    {rooms_html}
     <div class="info-grid">{info_rows}</div>
-    {action_html}{td_action}{notes_html}
+    {action_html}{td_action}{bf_action}{notes_html}
 </div>"""
 
 
@@ -295,15 +322,16 @@ def generate_daily_html(df: pd.DataFrame, target_date: date, logo_path: str) -> 
         html += "".join(booking_card(row, "departure") for _, row in dep.iterrows())
         return html
 
-    def next_week_section(week_start_date):
-        """Summary of all arrivals in the next calendar week."""
+    def next_week_section(week_start_date, week_number: int):
+        """Summary of all arrivals for one upcoming calendar week."""
         week_end = week_start_date + timedelta(days=6)
         arr = df[(df["arrival_date"].dt.date >= week_start_date) &
                  (df["arrival_date"].dt.date <= week_end)]
-        label = (f"Semaine prochaine : {week_start_date.day}/{week_start_date.month}"
-                 f" – {week_end.day}/{week_end.month}")
+        label = (f"Semaine +{week_number} : {DAYS_FR[week_start_date.weekday()]} "
+                 f"{week_start_date.day}/{week_start_date.month}"
+                 f" – {DAYS_FR[week_end.weekday()]} {week_end.day}/{week_end.month}")
         if arr.empty:
-            return f'<div class="section-title">📆 {label}</div><div class="empty-msg" style="padding:16px">Aucune arrivée la semaine prochaine</div>'
+            return f'<div class="section-title">📆 {label}</div><div class="empty-msg" style="padding:16px">Aucune arrivée</div>'
         html = f'<div class="section-title">📆 {label}</div>'
         html += "".join(booking_card(row, "arrival") for _, row in arr.iterrows())
         return html
@@ -325,7 +353,9 @@ def generate_daily_html(df: pd.DataFrame, target_date: date, logo_path: str) -> 
     tomorrow_body      = upcoming_day_section(1, "⬆ Demain")
     day_after_body     = upcoming_day_section(2, "⬆ Après-demain")
     next_week_start    = target_date + timedelta(days=(7 - target_date.weekday()))
-    next_week_body     = next_week_section(next_week_start)
+    week_after_start   = next_week_start + timedelta(days=7)
+    next_week_body     = next_week_section(next_week_start,  1)
+    week_after_body    = next_week_section(week_after_start, 2)
 
     body = f"""
 {today_body}
@@ -344,10 +374,11 @@ def generate_daily_html(df: pd.DataFrame, target_date: date, logo_path: str) -> 
   <summary style="cursor:pointer;font-weight:700;color:var(--primary);font-size:.85rem;
                   text-transform:uppercase;letter-spacing:1.5px;padding:8px 0;
                   border-bottom:2px solid var(--accent);">
-    📆 Semaine prochaine
+    📆 Semaines prochaines
   </summary>
   <div style="margin-top:12px">
     {next_week_body}
+    {week_after_body}
   </div>
 </details>
 """
@@ -405,6 +436,11 @@ def generate_weekly_html(df: pd.DataFrame, week_start: date, logo_path: str) -> 
     td_week = arrivals_week[
         arrivals_week.get("table_dhotes", pd.Series(dtype=str)).astype(str).str.lower().isin(["true", "1", "yes", "oui"])
     ] if "table_dhotes" in arrivals_week.columns else arrivals_week.iloc[0:0]
+
+    # Breakfast this week
+    bf_week = arrivals_week[
+        arrivals_week.get("breakfast", pd.Series(dtype=str)).astype(str).str.lower().isin(["true", "1", "yes", "oui"])
+    ] if "breakfast" in arrivals_week.columns else arrivals_week.iloc[0:0]
 
     # Occupancy per day
     occ_rows = ""
@@ -482,6 +518,10 @@ def generate_weekly_html(df: pd.DataFrame, week_start: date, logo_path: str) -> 
     <div class="stat-card">
       <div class="stat-value">{len(td_week)}</div>
       <div class="stat-label">🍽️ Table d'hôtes</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">{len(bf_week)}</div>
+      <div class="stat-label">🥐 Petit-déjeuner</div>
     </div>
   </div>
 
