@@ -125,5 +125,5 @@ COLUMNS = [
     "arrival_date", "departure_date", "amount",
     "guest_name", "phone", "email", "nationality", "nights",
     "cancellation_date", "modification_date", "notes",
-    "repeat_guest", "visit_count", "table_dhotes", "breakfast",
+    "repeat_guest", "visit_count", "table_dhotes", "breakfast", "guest_count",
 ]

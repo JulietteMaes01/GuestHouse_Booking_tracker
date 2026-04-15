@@ -96,9 +96,14 @@ def booking_form():
         nationality    = request.form.get("nationality", "").strip()
         amount_str     = request.form.get("amount", "").strip()
         notes          = request.form.get("notes", "").strip()
-        table_dhotes   = request.form.get("table_dhotes") == "1"
-        brunch         = request.form.get("brunch") == "1"
-        breakfast      = request.form.get("breakfast") == "1" or brunch
+        table_dhotes      = request.form.get("table_dhotes") == "1"
+        brunch            = request.form.get("brunch") == "1"
+        breakfast         = request.form.get("breakfast") == "1" or brunch
+        guest_count_str   = request.form.get("guest_count", "").strip()
+        try:
+            guest_count = max(1, int(guest_count_str)) if guest_count_str else ""
+        except ValueError:
+            guest_count = ""
 
         # Meal form always uses Email/phone (no source selector in that tab)
         if form_type == "meal":
@@ -132,6 +137,8 @@ def booking_form():
         else:  # meal
             if not (breakfast or table_dhotes):
                 errors.append("Veuillez sélectionner au moins un service repas.")
+            if not guest_count_str:
+                errors.append("Le nombre de personnes est obligatoire pour un repas.")
         if not arrival_str:
             errors.append("La date d'arrivée est obligatoire.")
         if form_type == "room" and not departure_str:
@@ -223,6 +230,7 @@ def booking_form():
             "visit_count":       1,
             "table_dhotes":      table_dhotes,
             "breakfast":         breakfast,
+            "guest_count":       guest_count,
         }
 
         # ── Repeat-guest detection ────────────────────────────────────────────
