@@ -20,7 +20,7 @@ from datetime import datetime, timedelta, date
 import pandas as pd
 
 from auth import get_worksheet
-from config import ROOMS, GITHUB_REPO_PATH, DOCS_FOLDER, OWNER_NAME, PREPAID_SOURCES
+from config import ROOMS, GITHUB_REPO_PATH, DOCS_FOLDER, OWNER_NAME, PREPAID_SOURCES, SOURCE_ALIASES
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(message)s")
 log = logging.getLogger(__name__)
@@ -155,6 +155,11 @@ def load_data() -> pd.DataFrame:
 
     # Only active bookings
     df = df[~df["status"].str.lower().isin(["cancelled"])]
+
+    # Normalize legacy source labels (e.g. "Manual" → "Email/phone")
+    if "booking_source" in df.columns:
+        df["booking_source"] = df["booking_source"].replace(SOURCE_ALIASES)
+
     return df
 
 
@@ -213,7 +218,9 @@ def booking_card(row, booking_type: str) -> str:
     }
 
     table_dhotes = str(row.get("table_dhotes", "")).lower() in ("true", "1", "yes", "oui")
-    breakfast    = str(row.get("breakfast",    "")).lower() in ("true", "1", "yes", "oui")
+    # Breakfast: explicit flag OR auto-included for Booking.com / Website
+    breakfast    = (str(row.get("breakfast", "")).lower() in ("true", "1", "yes", "oui")
+                    or source in {"Booking.com", "Website"})
     try:
         guest_count = int(row.get("guest_count", "") or 0)
     except (ValueError, TypeError):
