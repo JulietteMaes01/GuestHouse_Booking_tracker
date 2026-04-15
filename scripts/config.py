@@ -97,6 +97,13 @@ NATIONALITY_EN_TO_FR = {
 
 OWNER_NAME = "Juliette Maes"
 
+# ── Booking source aliases (legacy → current label) ───────────────────────────
+# Applied at data-load time in analytics.py and schedule_generator.py so that
+# old sheet rows with "Manual" are displayed identically to "Email/phone".
+SOURCE_ALIASES = {
+    "Manual": "Email/phone",
+}
+
 # ── Commissions ────────────────────────────────────────────────────────────────
 # Net amount = gross amount × (1 - commission rate)
 # Update BOOKING_COM_COMMISSION once you have the exact rate from your contract.

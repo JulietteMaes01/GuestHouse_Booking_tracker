@@ -19,7 +19,7 @@ warnings.filterwarnings("ignore")
 # ── local imports ────────────────────────────────────────────────────────────
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from auth import get_worksheet
-from config import DOCS_FOLDER, GITHUB_REPO_PATH, ROOMS, COMMISSIONS, BOOKING_GOALS
+from config import DOCS_FOLDER, GITHUB_REPO_PATH, ROOMS, COMMISSIONS, BOOKING_GOALS, SOURCE_ALIASES
 
 # ── colour themes ─────────────────────────────────────────────────────────────
 # Change THEME to switch the full palette. "P01" or "P03".
@@ -36,7 +36,7 @@ _THEMES = {
         "text":       "#2C2C2C",   # Ardoise Fumée
         "shadow_rgb": "74,93,78",
         "rooms":      ["#4A5D4E", "#D4A373", "#C9D5CB", "#E8E2D8"],
-        "sources":    {"Booking.com": "#4A5D4E", "Website": "#D4A373", "Manual": "#7A8C7E", "Unknown": "#C9D5CB"},
+        "sources":    {"Booking.com": "#4A5D4E", "Website": "#D4A373", "Email/phone": "#7A8C7E", "Social Deal": "#A8B8AC", "Expedia": "#C9D5CB", "Unknown": "#E8E2D8"},
         "goal_hit":   "#4A5D4E",
         "goal_miss":  "#D4A373",
     },
@@ -50,7 +50,7 @@ _THEMES = {
         "text":       "#3E3E3E",   # Bistre
         "shadow_rgb": "141,91,76",
         "rooms":      ["#8D5B4C", "#E6C199", "#E8D5C0", "#F5E8D5"],
-        "sources":    {"Booking.com": "#8D5B4C", "Website": "#E6C199", "Manual": "#A67C6E", "Unknown": "#E8D5C0"},
+        "sources":    {"Booking.com": "#8D5B4C", "Website": "#E6C199", "Email/phone": "#A67C6E", "Social Deal": "#E8D5C0", "Expedia": "#F5E8D5", "Unknown": "#D5C5B0"},
         "goal_hit":   "#8D5B4C",
         "goal_miss":  "#E6C199",
     },
@@ -152,21 +152,32 @@ def load_data(include_cancelled=False):
         except Exception:
             nights = (departure - arrival).days if departure else 0
         source = str(r.get("booking_source", "")).strip() or "Unknown"
+        source = SOURCE_ALIASES.get(source, source)   # normalize legacy labels
         commission = COMMISSIONS.get(source, 0.0)
         net_amount = round(amount * (1 - commission), 2)
+        # Breakfast: explicit flag OR auto-included for Booking.com / Website
+        breakfast = (str(r.get("breakfast", "")).lower() in ("true", "1", "yes", "oui")
+                     or source in {"Booking.com", "Website"})
+        try:
+            guest_count = max(0, int(float(str(r.get("guest_count", "") or 0))))
+        except (ValueError, TypeError):
+            guest_count = 0
         rows.append({
-            "source":     source,
-            "arrival":    arrival,
-            "departure":  departure,
-            "booking_d":  booking_d,
-            "rooms":      rooms_booked,
-            "amount":     amount,        # gross (what guest paid)
-            "net_amount": net_amount,    # after commission
-            "commission": commission,
-            "nights":     nights,
+            "source":      source,
+            "arrival":     arrival,
+            "departure":   departure,
+            "booking_d":   booking_d,
+            "rooms":       rooms_booked,
+            "amount":      amount,        # gross (what guest paid)
+            "net_amount":  net_amount,    # after commission
+            "commission":  commission,
+            "nights":      nights,
             "nationality": _norm_nat(r.get("nationality", "")),
             "repeat":       str(r.get("repeat_guest", "")).lower() in ("true", "1", "yes"),
             "table_dhotes": str(r.get("table_dhotes", "")).lower() in ("true", "1", "yes", "oui"),
+            "breakfast":    breakfast,
+            "guest_count":  guest_count,
+            "is_meal_only": len(rooms_booked) == 0,
             "status":       status,
             "reference":    str(r.get("reference", "")),
         })
@@ -363,14 +374,17 @@ def chart_source_trend(rows):
         q = f"{r['arrival'].year} Q{((r['arrival'].month-1)//3)+1}"
         quarters[q][r["source"]] += 1
     qs = sorted(quarters.keys())
-    sources = ["Booking.com", "Website", "Manual"]
-    colors  = [SOURCE_COLORS[s] for s in sources]
+    # All sources present in data, ordered by total volume
+    all_src_counts = Counter(r["source"] for r in rows)
+    sources = [s for s, _ in all_src_counts.most_common()]
+    colors  = [SOURCE_COLORS.get(s, LIGHT) for s in sources]
     x = np.arange(len(qs))
-    w = 0.25
+    n = len(sources)
+    w = min(0.8 / n, 0.3)
     fig, ax = plt.subplots(figsize=(10, 4.5))
     for i, src in enumerate(sources):
         vals = [quarters[q].get(src, 0) for q in qs]
-        offset = (i - 1) * w
+        offset = (i - (n - 1) / 2) * w
         bars = ax.bar(x + offset, vals, w, label=src, color=colors[i], zorder=3)
         ax.bar_label(bars, padding=2, fontsize=8)
     ax.set_xticks(x)
@@ -586,24 +600,30 @@ def chart_weekly_goal(rows):
 
 
 def chart_table_dhotes(rows):
-    """How many bookings include Table d'hôtes, by month."""
+    """How many bookings include Table d'hôtes or Breakfast, by month."""
     MONTH_FR = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
     td_by_month    = Counter(r["arrival"].month for r in rows if r["table_dhotes"])
+    bf_by_month    = Counter(r["arrival"].month for r in rows if r["breakfast"])
     total_by_month = Counter(r["arrival"].month for r in rows)
     months = [m for m in range(1, 13) if total_by_month.get(m, 0) > 0]
-    if not months or not any(td_by_month.values()):
+    has_td = any(td_by_month.values())
+    has_bf = any(bf_by_month.values())
+    if not months or (not has_td and not has_bf):
         return None
     x   = np.arange(len(months))
-    w   = 0.38
+    w   = 0.26
     tot = [total_by_month[m] for m in months]
     tdt = [td_by_month.get(m, 0) for m in months]
+    bft = [bf_by_month.get(m, 0)  for m in months]
     fig, ax = plt.subplots(figsize=(11, 4))
-    bars1 = ax.bar(x - w/2, tot, w, label="Total réservations", color=LIGHT,   zorder=3)
-    bars2 = ax.bar(x + w/2, tdt, w, label="Dont Table d'hôtes", color=BROWN,  zorder=3)
+    bars1 = ax.bar(x - w,     tot, w, label="Total réservations", color=LIGHT,    zorder=3)
+    bars2 = ax.bar(x,         tdt, w, label="🍽️ Table d'hôtes",  color=BROWN,    zorder=3)
+    bars3 = ax.bar(x + w,     bft, w, label="🥐 Petit-déjeuner",  color=ACCENT,   zorder=3)
     ax.bar_label(bars2, padding=3, fontsize=9, fontweight="bold")
+    ax.bar_label(bars3, padding=3, fontsize=9, fontweight="bold")
     ax.set_xticks(x)
     ax.set_xticklabels([MONTH_FR[m-1] for m in months])
-    ax.set_title("Réservations avec Table d'hôtes par mois")
+    ax.set_title("🍽️🥐 Repas par mois")
     ax.set_ylabel("Réservations")
     ax.legend(frameon=False)
     ax.grid(axis="y", color=LIGHT, zorder=0)
@@ -630,6 +650,44 @@ def chart_avg_revenue_per_room(rows):
     ax.set_ylim(0, max(means) * 1.2)
     return _fig_to_b64(fig)
 
+def chart_revenue_rooms_vs_food(rows):
+    """Gross revenue by month, split between room bookings and meal-only bookings."""
+    MONTH_FR = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
+    room_rev = defaultdict(float)
+    food_rev = defaultdict(float)
+    for r in rows:
+        key = (r["arrival"].year, r["arrival"].month)
+        if r["is_meal_only"]:
+            food_rev[key] += r["amount"]
+        else:
+            room_rev[key] += r["amount"]
+    all_keys = sorted(set(list(room_rev.keys()) + list(food_rev.keys())))
+    if not all_keys:
+        return None
+    x          = np.arange(len(all_keys))
+    room_vals  = [room_rev[k] for k in all_keys]
+    food_vals  = [food_rev[k] for k in all_keys]
+    labels     = [f"{MONTH_FR[k[1]-1]} {str(k[0])[2:]}" for k in all_keys]
+    fig, ax    = plt.subplots(figsize=(12, 4))
+    p1 = ax.bar(x, room_vals, label="Hébergement", color=BROWN,  zorder=3)
+    p2 = ax.bar(x, food_vals, bottom=room_vals,    label="Restauration", color=ACCENT, zorder=3)
+    # Label total on top of each stack
+    for xi, (rv, fv) in enumerate(zip(room_vals, food_vals)):
+        total = rv + fv
+        if total > 0:
+            ax.text(xi, total + max(room_vals + food_vals) * 0.015,
+                    f"{total:,.0f}€", ha="center", va="bottom", fontsize=8, color=TEXT_COLOR)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, rotation=45, ha="right", fontsize=9)
+    ax.set_title("Revenus bruts — Hébergement vs Restauration")
+    ax.set_ylabel("€ (brut)")
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:,.0f} €"))
+    ax.legend(frameon=False)
+    ax.grid(axis="y", color=LIGHT, zorder=0)
+    fig.tight_layout()
+    return _fig_to_b64(fig)
+
+
 # ── KPI cards ─────────────────────────────────────────────────────────────────
 def compute_kpis(rows):
     total     = len(rows)
@@ -653,6 +711,9 @@ def compute_kpis(rows):
     week_kpi   = f"{week_count}/{goal}" if goal else str(week_count)
     week_icon  = "✅" if goal and week_count >= goal else "🎯"
     td_count   = sum(1 for r in rows if r["table_dhotes"])
+    bf_count   = sum(1 for r in rows if r["breakfast"])
+    cover_vals = [r["guest_count"] for r in rows if r["guest_count"] > 0]
+    avg_covers = f"{np.mean(cover_vals):.1f}" if cover_vals else "—"
     return [
         ("🏠", f"{total}", "Réservations totales"),
         ("💶", f"{revenue:,.0f} €", "Revenus nets (après commissions)"),
@@ -661,7 +722,9 @@ def compute_kpis(rows):
         ("🏆", top_room, "Chambre star"),
         ("📅", f"{med_lead} jours", "Délai médian de réservation"),
         (week_icon, week_kpi, f"Cette semaine (objectif {this_year})"),
-        ("🍽️", f"{td_count}", "Réservations Table d'hôtes"),
+        ("🍽️", f"{td_count}", "Table d'hôtes"),
+        ("🥐", f"{bf_count}", "Petit-déjeuner"),
+        ("👥", avg_covers, "Couverts en moyenne"),
     ]
 
 # ── HTML builder ──────────────────────────────────────────────────────────────
@@ -762,6 +825,11 @@ def main():
     c = chart_revenue_month(rows)
     charts.append((c, "Revenus nets par mois", "Booking.com : -15% commission. Mettre à jour dans config.py quand le taux exact est confirmé.", True))
 
+    c = chart_revenue_rooms_vs_food(rows)
+    if c:
+        charts.append((c, "Revenus bruts — Hébergement vs Restauration",
+                       "Hébergement = réservations avec chambre · Restauration = repas seuls (sans chambre)", True))
+
     c = chart_yoy_weekly(rows)
     if c:
         charts.append((c, "Rythme de croissance (cumulé par semaine)", "Comparaison année vs année", True))
@@ -814,8 +882,8 @@ def main():
 
     c = chart_table_dhotes(rows)
     if c:
-        charts.append((c, "Réservations avec Table d'hôtes",
-                       "Nombre de séjours incluant le dîner à la table d'hôtes", True))
+        charts.append((c, "🍽️🥐 Repas par mois",
+                       "Table d'hôtes (dîner) et petit-déjeuner inclus — Booking.com et Website auto-inclus", True))
 
     html = build_html(kpis, charts)
 
