@@ -291,6 +291,12 @@
 
       <!-- Amount & meal add-ons -->
       <div class="form-group">
+        <label for="r_guest_count">Nombre de personnes <span class="optional">(facultatif — pour repas)</span></label>
+        <input type="number" id="r_guest_count" name="guest_count" min="1" max="50"
+               placeholder="2"
+               value="{{ form_data.get('guest_count', '') if active_tab == 'room' else '' }}">
+      </div>
+      <div class="form-group">
         <label for="r_amount">Montant Total (€) <span class="optional">(facultatif)</span></label>
         <input type="number" id="r_amount" name="amount" step="0.01" min="0"
                placeholder="0.00"
@@ -352,11 +358,19 @@
 
       <hr class="divider">
 
-      <!-- Single date -->
-      <div class="form-group">
-        <label for="m_arrival_date">Date du repas <span class="required">*</span></label>
-        <input type="date" id="m_arrival_date" name="arrival_date" required
-               value="{{ form_data.get('arrival_date', '') if active_tab == 'meal' else '' }}">
+      <!-- Date + headcount -->
+      <div class="date-row">
+        <div class="form-group">
+          <label for="m_arrival_date">Date du repas <span class="required">*</span></label>
+          <input type="date" id="m_arrival_date" name="arrival_date" required
+                 value="{{ form_data.get('arrival_date', '') if active_tab == 'meal' else '' }}">
+        </div>
+        <div class="form-group">
+          <label for="m_guest_count">Nombre de personnes <span class="required">*</span></label>
+          <input type="number" id="m_guest_count" name="guest_count" min="1" max="50" required
+                 placeholder="ex. 4"
+                 value="{{ form_data.get('guest_count', '') if active_tab == 'meal' else '' }}">
+        </div>
       </div>
 
       <hr class="divider">
@@ -401,7 +415,7 @@
         <label class="option-row" style="cursor:pointer;">
           <input type="checkbox" name="diet_vegan" value="1" id="m_diet_vegan"
                  {% if active_tab == 'meal' and form_data.get('diet_vegan') == '1' %}checked{% endif %}>
-          🌱 Végétalien
+          🌱 Vegan
         </label>
         <label class="option-row" style="cursor:pointer;">
           <input type="checkbox" name="diet_vegetarian" value="1" id="m_diet_vegetarian"
