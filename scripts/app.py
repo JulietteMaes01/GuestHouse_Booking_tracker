@@ -96,11 +96,33 @@ def booking_form():
         nationality    = request.form.get("nationality", "").strip()
         amount_str     = request.form.get("amount", "").strip()
         notes          = request.form.get("notes", "").strip()
-        booking_source = request.form.get("booking_source", "Email/phone").strip()
-        if booking_source not in MANUAL_SOURCES:
-            booking_source = "Email/phone"
         table_dhotes   = request.form.get("table_dhotes") == "1"
-        breakfast      = request.form.get("breakfast") == "1"
+        brunch         = request.form.get("brunch") == "1"
+        breakfast      = request.form.get("breakfast") == "1" or brunch
+
+        # Meal form always uses Email/phone (no source selector in that tab)
+        if form_type == "meal":
+            booking_source = "Email/phone"
+        else:
+            booking_source = request.form.get("booking_source", "Email/phone").strip()
+            if booking_source not in MANUAL_SOURCES:
+                booking_source = "Email/phone"
+
+        # ── Dietary / service notes (meal form only) ──────────────────────────
+        if form_type == "meal":
+            diet_parts = []
+            if brunch:
+                diet_parts.append("☕ Brunch")
+            if request.form.get("diet_vegan")       == "1": diet_parts.append("🌱 Végétalien")
+            if request.form.get("diet_vegetarian")  == "1": diet_parts.append("🥦 Végétarien")
+            if request.form.get("diet_gluten_free") == "1": diet_parts.append("🌾 Sans gluten")
+            if request.form.get("diet_dairy_free")  == "1": diet_parts.append("🥛 Sans lactose")
+            diet_other = request.form.get("diet_other", "").strip()
+            if diet_other:
+                diet_parts.append(f"⚠️ {diet_other}")
+            if diet_parts:
+                prefix = "[" + " | ".join(diet_parts) + "]"
+                notes  = f"{prefix} {notes}".strip()
 
         # ── Validation ────────────────────────────────────────────────────────
         errors = []
