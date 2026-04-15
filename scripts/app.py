@@ -222,6 +222,46 @@ def booking_form():
     )
 
 
+@app.route("/update-email", methods=["POST"])
+def update_email():
+    reference = request.form.get("reference", "").strip().upper()
+    new_email  = request.form.get("new_email",  "").strip()
+
+    if not reference or not new_email:
+        flash("Référence et adresse email obligatoires.", "error")
+        return redirect(url_for("booking_form"))
+
+    try:
+        ws         = get_worksheet()
+        all_values = ws.get_all_values()
+        if not all_values:
+            flash("Tableau vide — impossible de mettre à jour.", "error")
+            return redirect(url_for("booking_form"))
+
+        headers   = all_values[0]
+        ref_col   = headers.index("reference") if "reference" in headers else None
+        email_col = headers.index("email")     if "email"     in headers else None
+
+        if ref_col is None or email_col is None:
+            flash("Colonnes 'reference' ou 'email' introuvables dans le tableau.", "error")
+            return redirect(url_for("booking_form"))
+
+        for row_idx, row in enumerate(all_values[1:], start=2):
+            if len(row) > ref_col and row[ref_col].strip().upper() == reference:
+                ws.update_cell(row_idx, email_col + 1, new_email)  # gspread is 1-indexed
+                log.info(f"Email updated for {reference} → {new_email}")
+                flash(f"✓ Email mis à jour pour {reference} : {new_email}", "success")
+                return redirect(url_for("booking_form"))
+
+        flash(f"Référence « {reference} » introuvable dans le tableau.", "error")
+
+    except Exception as exc:
+        log.error(f"Failed to update email for {reference}: {exc}")
+        flash(f"Erreur lors de la mise à jour : {exc}", "error")
+
+    return redirect(url_for("booking_form"))
+
+
 if __name__ == "__main__":
     import socket
 
