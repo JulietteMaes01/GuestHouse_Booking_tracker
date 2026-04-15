@@ -6,17 +6,19 @@
 <title>Nouvelle Réservation — La Ferme de la Cour</title>
 <style>
   :root {
-    --primary:  #5D4037;
-    --light:    #EFEBE9;
-    --accent:   #A1887F;
-    --text:     #3E2723;
-    --red:      #C62828;
-    --green:    #2E7D32;
+    --primary:   #4A5D4E;
+    --secondary: #7A8C7E;
+    --accent:    #D4A373;
+    --text:      #2C2C2C;
+    --bg:        #F1EFE7;
+    --card-bg:   #fff;
+    --red:       #C62828;
+    --green:     #2E7D32;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: 'Segoe UI', Tahoma, Verdana, sans-serif;
-    background: var(--light);
+    background: var(--bg);
     color: var(--text);
     padding: 0 0 40px;
   }
@@ -26,24 +28,57 @@
     text-align: center;
     padding: 20px 16px;
     border-radius: 0 0 12px 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,.1);
+    margin-bottom: 0;
+  }
+  header img { max-height: 65px; margin-bottom: 8px; display: block; margin-inline: auto; }
+  header h1  { font-size: 1.4rem; }
+  header p   { font-size: .9rem; opacity: .85; margin-top: 4px; font-style: italic; }
+  .container { max-width: 580px; margin: 0 auto; padding: 0 16px; }
+
+  /* ── Tabs ─────────────────────────────────────────────────────────────── */
+  .tabs {
+    display: flex;
+    background: #2E3D31;
+    overflow: hidden;
     margin-bottom: 24px;
   }
-  header img  { max-height: 65px; margin-bottom: 8px; display: block; margin-inline: auto; }
-  header h1   { font-size: 1.4rem; }
-  header p    { font-size: .9rem; opacity: .85; margin-top: 4px; }
-  .container  { max-width: 580px; margin: 0 auto; padding: 0 16px; }
+  .tab-btn {
+    flex: 1;
+    padding: 14px 8px;
+    background: transparent;
+    color: rgba(255,255,255,.6);
+    border: none;
+    font-size: .9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .2s, color .2s;
+    text-align: center;
+  }
+  .tab-btn.active {
+    background: var(--bg);
+    color: var(--primary);
+    border-radius: 8px 8px 0 0;
+    margin: 6px 4px 0;
+    padding: 10px 8px 14px;
+  }
+  .tab-btn:hover:not(.active) { background: rgba(255,255,255,.08); }
 
-  /* Alerts */
+  /* ── Tab panels ───────────────────────────────────────────────────────── */
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── Alerts ───────────────────────────────────────────────────────────── */
   .alert { padding: 14px 16px; border-radius: 8px; margin-bottom: 16px; font-size: .9rem; }
   .alert.success { background: #E8F5E9; color: var(--green); border: 1px solid #A5D6A7; }
   .alert.error   { background: #FFEBEE; color: var(--red);   border: 1px solid #EF9A9A; }
 
-  /* Form groups */
-  .form-group  { margin-bottom: 18px; }
-  label        { display: block; font-weight: 600; font-size: .9rem;
-                 color: var(--primary); margin-bottom: 6px; }
-  .optional    { font-weight: 400; font-size: .8rem; color: #888; margin-left: 4px; }
-  .required    { color: var(--red); margin-left: 2px; }
+  /* ── Form groups ──────────────────────────────────────────────────────── */
+  .form-group { margin-bottom: 18px; }
+  label       { display: block; font-weight: 600; font-size: .9rem;
+                color: var(--primary); margin-bottom: 6px; }
+  .optional   { font-weight: 400; font-size: .8rem; color: #888; margin-left: 4px; }
+  .required   { color: var(--red); margin-left: 2px; }
   input[type="text"],
   input[type="tel"],
   input[type="email"],
@@ -53,11 +88,11 @@
   textarea {
     width: 100%;
     padding: 13px 14px;
-    border: 2px solid #D7CCC8;
+    border: 2px solid #C8D5CA;
     border-radius: 8px;
-    font-size: 16px;     /* 16px prevents iOS zoom */
+    font-size: 16px;   /* 16px prevents iOS zoom */
     color: var(--text);
-    background: #fff;
+    background: var(--card-bg);
     transition: border-color .2s;
     -webkit-appearance: none;
   }
@@ -67,26 +102,36 @@
   }
   textarea { resize: vertical; min-height: 80px; }
 
-  /* Room checkboxes */
-  .rooms-grid { display: grid; gap: 8px; }
-  .room-option { display: flex; align-items: center; gap: 12px;
-                 background: #fff; border: 2px solid #D7CCC8;
-                 border-radius: 8px; padding: 12px 14px; cursor: pointer;
-                 font-size: .95rem; transition: border-color .15s, background .15s; }
-  .room-option:has(input:checked) {
-    border-color: var(--primary);
-    background: #FBE9E7;
+  /* ── Option rows (checkboxes / radios) ────────────────────────────────── */
+  .options-grid { display: grid; gap: 8px; }
+  .option-row {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--card-bg); border: 2px solid #C8D5CA;
+    border-radius: 8px; padding: 12px 14px; cursor: pointer;
+    font-size: .95rem; transition: border-color .15s, background .15s;
   }
-  .room-option input[type="checkbox"],
-  .room-option input[type="radio"] {
+  .option-row:has(input:checked) {
+    border-color: var(--primary);
+    background: #EBF0EC;
+  }
+  .option-row input[type="checkbox"],
+  .option-row input[type="radio"] {
     width: 20px; height: 20px; min-width: 20px;
     accent-color: var(--primary); cursor: pointer;
   }
 
-  /* Nights display */
+  /* ── Dietary section ──────────────────────────────────────────────────── */
+  .section-label {
+    font-size: .8rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--secondary);
+    margin: 20px 0 10px; padding-bottom: 4px;
+    border-bottom: 2px solid var(--accent);
+  }
+
+  /* ── Nights pill ──────────────────────────────────────────────────────── */
   .nights-pill {
     display: none;
-    background: #FBE9E7;
+    background: #EBF0EC;
     color: var(--primary);
     font-weight: 700;
     font-size: .95rem;
@@ -96,10 +141,10 @@
     margin-top: 8px;
   }
 
-  /* Date row */
+  /* ── Date row ─────────────────────────────────────────────────────────── */
   .date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
-  /* Submit */
+  /* ── Submit buttons ───────────────────────────────────────────────────── */
   button[type="submit"] {
     width: 100%;
     padding: 16px;
@@ -113,13 +158,19 @@
     margin-top: 6px;
     transition: background .2s;
   }
-  button[type="submit"]:active { background: #4E342E; }
+  button[type="submit"]:active { background: #2E3D31; }
+  .btn-update { background: #5D6E4E; }
+  .btn-update:active { background: #3D4E2E; }
 
-  /* Divider */
-  .divider { border: none; border-top: 1px solid #D7CCC8; margin: 24px 0; }
+  /* ── Divider ──────────────────────────────────────────────────────────── */
+  .divider { border: none; border-top: 1px solid #C8D5CA; margin: 22px 0; }
+
+  /* ── Helper text ──────────────────────────────────────────────────────── */
+  .help-text { font-size: .85rem; color: #666; line-height: 1.5; margin-bottom: 18px; }
 
   @media (max-width: 480px) {
     .date-row { grid-template-columns: 1fr; }
+    .tab-btn  { font-size: .78rem; padding: 12px 4px; }
   }
 </style>
 </head>
@@ -127,9 +178,16 @@
 
 <header>
   <img src="/logo.png" alt="La Ferme de la Cour" onerror="this.style.display='none'">
-  <h1>Nouvelle Réservation</h1>
-  <p>La Ferme de la Cour — Réservation directe</p>
+  <h1>La Ferme de la Cour</h1>
+  <p>Gestion des réservations</p>
 </header>
+
+<!-- ── Tab navigation ─────────────────────────────────────────────────── -->
+<div class="tabs">
+  <button class="tab-btn" id="tab-btn-room"  onclick="switchTab('room')">🛏️ Chambre</button>
+  <button class="tab-btn" id="tab-btn-meal"  onclick="switchTab('meal')">🍽️ Repas seul</button>
+  <button class="tab-btn" id="tab-btn-email" onclick="switchTab('email')">✏️ Modifier email</button>
+</div>
 
 <div class="container">
 
@@ -139,191 +197,345 @@
     {% endfor %}
   {% endwith %}
 
-  <form method="POST" action="/" novalidate>
+  <!-- ════════════════════════════════════════════════════════════════════
+       TAB 1 — Room booking
+       ════════════════════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="panel-room">
+    <form method="POST" action="/" novalidate>
+      <input type="hidden" name="form_type" value="room">
 
-    <!-- ── Source de réservation ─────────────────────────────── -->
-    <div class="form-group">
-      <label>Source de réservation <span class="required">*</span></label>
-      <div class="rooms-grid">
-        {% for src in manual_sources %}
-        <label class="room-option">
-          <input type="radio" name="booking_source" value="{{ src }}"
-            {% if (form_data.get('booking_source') or 'Email/phone') == src %}checked{% endif %}>
-          {% if src == 'Email/phone' %}📞{% elif src == 'Social Deal' %}🎟️{% elif src == 'Expedia' %}✈️{% endif %}
-          {{ src }}
-        </label>
-        {% endfor %}
-      </div>
-    </div>
-
-    <hr class="divider">
-
-    <!-- ── Chambres ────────────────────────────────────────────── -->
-    <div class="form-group">
-      <label>Chambre(s) <span class="optional">(ou service repas uniquement)</span></label>
-      <div class="rooms-grid">
-        {% for room in rooms %}
-        <label class="room-option">
-          <input type="checkbox" name="rooms" value="{{ room }}"
-            {% if room in (form_data.getlist('rooms') if form_data else []) %}checked{% endif %}>
-          {{ room }}
-        </label>
-        {% endfor %}
-      </div>
-    </div>
-
-    <hr class="divider">
-
-    <!-- ── Dates ───────────────────────────────────────────────── -->
-    <div class="date-row">
+      <!-- Source -->
+      {% set r_src = form_data.get('booking_source') if active_tab == 'room' else '' %}
       <div class="form-group">
-        <label for="arrival_date">Arrivée <span class="required">*</span></label>
-        <input type="date" id="arrival_date" name="arrival_date" required
-               value="{{ form_data.get('arrival_date', '') }}">
+        <label>Source de réservation <span class="required">*</span></label>
+        <div class="options-grid">
+          {% for src in manual_sources %}
+          <label class="option-row">
+            <input type="radio" name="booking_source" value="{{ src }}"
+              {% if r_src == src or (not r_src and src == 'Email/phone') %}checked{% endif %}>
+            {% if src == 'Email/phone' %}📞{% elif src == 'Social Deal' %}🎟️{% elif src == 'Expedia' %}✈️{% endif %}
+            {{ src }}
+          </label>
+          {% endfor %}
+        </div>
       </div>
-      <div class="form-group" id="departure_group">
-        <label for="departure_date">Départ <span class="required">*</span> <span class="optional" id="departure_hint" style="display:none">(auto si repas seul)</span></label>
-        <input type="date" id="departure_date" name="departure_date"
-               value="{{ form_data.get('departure_date', '') }}">
+
+      <hr class="divider">
+
+      <!-- Rooms -->
+      <div class="form-group">
+        <label>Chambre(s) <span class="required">*</span></label>
+        <div class="options-grid">
+          {% for room in rooms %}
+          <label class="option-row">
+            <input type="checkbox" name="rooms" value="{{ room }}"
+              {% if active_tab == 'room' and room in (form_data.getlist('rooms') if form_data else []) %}checked{% endif %}>
+            {{ room }}
+          </label>
+          {% endfor %}
+        </div>
       </div>
-    </div>
-    <div class="nights-pill" id="nights_pill"></div>
 
-    <hr class="divider">
+      <hr class="divider">
 
-    <!-- ── Client ─────────────────────────────────────────────── -->
-    <div class="form-group">
-      <label for="guest_name">Nom du Client <span class="required">*</span></label>
-      <input type="text" id="guest_name" name="guest_name"
-             placeholder="Prénom Nom" required
-             value="{{ form_data.get('guest_name', '') }}">
-    </div>
+      <!-- Dates -->
+      <div class="date-row">
+        <div class="form-group">
+          <label for="r_arrival_date">Arrivée <span class="required">*</span></label>
+          <input type="date" id="r_arrival_date" name="arrival_date" required
+                 value="{{ form_data.get('arrival_date', '') if active_tab == 'room' else '' }}">
+        </div>
+        <div class="form-group">
+          <label for="r_departure_date">Départ <span class="required">*</span></label>
+          <input type="date" id="r_departure_date" name="departure_date" required
+                 value="{{ form_data.get('departure_date', '') if active_tab == 'room' else '' }}">
+        </div>
+      </div>
+      <div class="nights-pill" id="r_nights_pill"></div>
 
-    <div class="form-group">
-      <label for="phone">Téléphone <span class="required">*</span></label>
-      <input type="tel" id="phone" name="phone"
-             placeholder="+32 xxx xx xx xx" required
-             value="{{ form_data.get('phone', '') }}">
-    </div>
+      <hr class="divider">
 
-    <div class="form-group">
-      <label for="email">Email <span class="optional">(facultatif)</span></label>
-      <input type="email" id="email" name="email"
-             placeholder="exemple@email.com"
-             value="{{ form_data.get('email', '') }}">
-    </div>
+      <!-- Guest -->
+      <div class="form-group">
+        <label for="r_guest_name">Nom du Client <span class="required">*</span></label>
+        <input type="text" id="r_guest_name" name="guest_name"
+               placeholder="Prénom Nom" required
+               value="{{ form_data.get('guest_name', '') if active_tab == 'room' else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="r_phone">Téléphone <span class="required">*</span></label>
+        <input type="tel" id="r_phone" name="phone"
+               placeholder="+32 xxx xx xx xx" required
+               value="{{ form_data.get('phone', '') if active_tab == 'room' else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="r_email">Email <span class="optional">(facultatif)</span></label>
+        <input type="email" id="r_email" name="email"
+               placeholder="exemple@email.com"
+               value="{{ form_data.get('email', '') if active_tab == 'room' else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="r_nationality">Nationalité <span class="optional">(facultatif)</span></label>
+        <select id="r_nationality" name="nationality">
+          <option value="">— Choisir —</option>
+          {% for nat in nationalities %}
+          <option value="{{ nat }}"
+            {% if active_tab == 'room' and form_data.get('nationality') == nat %}selected{% endif %}>
+            {{ nat }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
 
-    <div class="form-group">
-      <label for="nationality">Nationalité <span class="optional">(facultatif)</span></label>
-      <select id="nationality" name="nationality">
-        <option value="">— Choisir —</option>
-        {% for nat in nationalities %}
-        <option value="{{ nat }}"
-          {% if form_data.get('nationality') == nat %}selected{% endif %}>
-          {{ nat }}
-        </option>
-        {% endfor %}
-      </select>
-    </div>
+      <hr class="divider">
 
-    <hr class="divider">
+      <!-- Amount & meal add-ons -->
+      <div class="form-group">
+        <label for="r_guest_count">Nombre de personnes <span class="optional">(facultatif — pour repas)</span></label>
+        <input type="number" id="r_guest_count" name="guest_count" min="1" max="50"
+               placeholder="2"
+               value="{{ form_data.get('guest_count', '') if active_tab == 'room' else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="r_amount">Montant Total (€) <span class="optional">(facultatif)</span></label>
+        <input type="number" id="r_amount" name="amount" step="0.01" min="0"
+               placeholder="0.00"
+               value="{{ form_data.get('amount', '') if active_tab == 'room' else '' }}">
+      </div>
+      <div class="form-group">
+        <label class="option-row" style="cursor:pointer;">
+          <input type="checkbox" name="table_dhotes" value="1" id="r_table_dhotes"
+                 {% if active_tab == 'room' and form_data.get('table_dhotes') == '1' %}checked{% endif %}>
+          🍽️ Table d'hôtes incluse (dîner)
+        </label>
+      </div>
+      <div class="form-group">
+        <label class="option-row" style="cursor:pointer;">
+          <input type="checkbox" name="breakfast" value="1" id="r_breakfast"
+                 {% if active_tab == 'room' and form_data.get('breakfast') == '1' %}checked{% endif %}>
+          🥐 Petit-déjeuner inclus
+        </label>
+      </div>
+      <div class="form-group">
+        <label for="r_notes">Notes <span class="optional">(facultatif)</span></label>
+        <textarea id="r_notes" name="notes"
+                  placeholder="Infos utiles sur le client ou la réservation…">{{ form_data.get('notes', '') if active_tab == 'room' else '' }}</textarea>
+      </div>
 
-    <!-- ── Montant & Notes ────────────────────────────────────── -->
-    <div class="form-group">
-      <label for="amount">Montant Total (€) <span class="optional">(facultatif)</span></label>
-      <input type="number" id="amount" name="amount" step="0.01" min="0"
-             placeholder="0.00"
-             value="{{ form_data.get('amount', '') }}">
-    </div>
+      <button type="submit">Enregistrer la Réservation</button>
+    </form>
+  </div><!-- /panel-room -->
 
-    <!-- ── Table d'hôtes ──────────────────────────────────────── -->
-    <div class="form-group">
-      <label class="room-option" style="cursor:pointer;">
-        <input type="checkbox" name="table_dhotes" value="1" id="table_dhotes"
-               {% if form_data.get('table_dhotes') == '1' %}checked{% endif %}>
-        🍽️ Table d'hôtes incluse (dîner)
-      </label>
-    </div>
 
-    <!-- ── Petit-déjeuner ────────────────────────────────────── -->
-    <div class="form-group">
-      <label class="room-option" style="cursor:pointer;">
-        <input type="checkbox" name="breakfast" value="1" id="breakfast"
-               {% if form_data.get('breakfast') == '1' %}checked{% endif %}>
-        🥐 Petit-déjeuner inclus
-      </label>
-    </div>
+  <!-- ════════════════════════════════════════════════════════════════════
+       TAB 2 — Meal-only booking
+       ════════════════════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="panel-meal">
+    <form method="POST" action="/" novalidate>
+      <input type="hidden" name="form_type" value="meal">
 
-    <div class="form-group">
-      <label for="notes">Notes <span class="optional">(facultatif)</span></label>
-      <textarea id="notes" name="notes"
-                placeholder="Infos utiles sur le client ou la réservation…">{{ form_data.get('notes', '') }}</textarea>
-    </div>
+      <!-- Meal services -->
+      <div class="form-group">
+        <label>Service(s) repas <span class="required">*</span></label>
+        <div class="options-grid">
+          <label class="option-row" style="cursor:pointer;">
+            <input type="checkbox" name="table_dhotes" value="1" id="m_table_dhotes"
+                   {% if active_tab == 'meal' and form_data.get('table_dhotes') == '1' %}checked{% endif %}>
+            🍽️ Table d'hôtes (dîner)
+          </label>
+          <label class="option-row" style="cursor:pointer;">
+            <input type="checkbox" name="breakfast" value="1" id="m_breakfast"
+                   {% if active_tab == 'meal' and form_data.get('breakfast') == '1' %}checked{% endif %}>
+            🥐 Petit-déjeuner
+          </label>
+          <label class="option-row" style="cursor:pointer;">
+            <input type="checkbox" name="brunch" value="1" id="m_brunch"
+                   {% if active_tab == 'meal' and form_data.get('brunch') == '1' %}checked{% endif %}>
+            ☕ Brunch
+          </label>
+        </div>
+      </div>
 
-    <button type="submit">Enregistrer la Réservation</button>
+      <hr class="divider">
 
-  </form>
-</div>
+      <!-- Date + headcount -->
+      <div class="date-row">
+        <div class="form-group">
+          <label for="m_arrival_date">Date du repas <span class="required">*</span></label>
+          <input type="date" id="m_arrival_date" name="arrival_date" required
+                 value="{{ form_data.get('arrival_date', '') if active_tab == 'meal' else '' }}">
+        </div>
+        <div class="form-group">
+          <label for="m_guest_count">Nombre de personnes <span class="required">*</span></label>
+          <input type="number" id="m_guest_count" name="guest_count" min="1" max="50" required
+                 placeholder="ex. 4"
+                 value="{{ form_data.get('guest_count', '') if active_tab == 'meal' else '' }}">
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <!-- Guest -->
+      <div class="form-group">
+        <label for="m_guest_name">Nom du Client <span class="required">*</span></label>
+        <input type="text" id="m_guest_name" name="guest_name"
+               placeholder="Prénom Nom" required
+               value="{{ form_data.get('guest_name', '') if active_tab == 'meal' else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="m_phone">Téléphone <span class="required">*</span></label>
+        <input type="tel" id="m_phone" name="phone"
+               placeholder="+32 xxx xx xx xx" required
+               value="{{ form_data.get('phone', '') if active_tab == 'meal' else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="m_email">Email <span class="optional">(facultatif)</span></label>
+        <input type="email" id="m_email" name="email"
+               placeholder="exemple@email.com"
+               value="{{ form_data.get('email', '') if active_tab == 'meal' else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="m_nationality">Nationalité <span class="optional">(facultatif)</span></label>
+        <select id="m_nationality" name="nationality">
+          <option value="">— Choisir —</option>
+          {% for nat in nationalities %}
+          <option value="{{ nat }}"
+            {% if active_tab == 'meal' and form_data.get('nationality') == nat %}selected{% endif %}>
+            {{ nat }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <hr class="divider">
+
+      <!-- Dietary restrictions -->
+      <div class="section-label">Régime alimentaire &amp; allergies</div>
+      <div class="options-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 10px;">
+        <label class="option-row" style="cursor:pointer;">
+          <input type="checkbox" name="diet_vegan" value="1" id="m_diet_vegan"
+                 {% if active_tab == 'meal' and form_data.get('diet_vegan') == '1' %}checked{% endif %}>
+          🌱 Vegan
+        </label>
+        <label class="option-row" style="cursor:pointer;">
+          <input type="checkbox" name="diet_vegetarian" value="1" id="m_diet_vegetarian"
+                 {% if active_tab == 'meal' and form_data.get('diet_vegetarian') == '1' %}checked{% endif %}>
+          🥦 Végétarien
+        </label>
+        <label class="option-row" style="cursor:pointer;">
+          <input type="checkbox" name="diet_gluten_free" value="1" id="m_diet_gluten_free"
+                 {% if active_tab == 'meal' and form_data.get('diet_gluten_free') == '1' %}checked{% endif %}>
+          🌾 Sans gluten
+        </label>
+        <label class="option-row" style="cursor:pointer;">
+          <input type="checkbox" name="diet_dairy_free" value="1" id="m_diet_dairy_free"
+                 {% if active_tab == 'meal' and form_data.get('diet_dairy_free') == '1' %}checked{% endif %}>
+          🥛 Sans lactose
+        </label>
+      </div>
+      <div class="form-group">
+        <label for="m_diet_other">Autres allergies / restrictions <span class="optional">(facultatif)</span></label>
+        <input type="text" id="m_diet_other" name="diet_other"
+               placeholder="ex. noix, crustacés, végane strict…"
+               value="{{ form_data.get('diet_other', '') if active_tab == 'meal' else '' }}">
+      </div>
+
+      <hr class="divider">
+
+      <div class="form-group">
+        <label for="m_amount">Montant Total (€) <span class="optional">(facultatif)</span></label>
+        <input type="number" id="m_amount" name="amount" step="0.01" min="0"
+               placeholder="0.00"
+               value="{{ form_data.get('amount', '') if active_tab == 'meal' else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="m_notes">Notes <span class="optional">(facultatif)</span></label>
+        <textarea id="m_notes" name="notes"
+                  placeholder="Infos supplémentaires…">{{ form_data.get('notes', '') if active_tab == 'meal' else '' }}</textarea>
+      </div>
+
+      <button type="submit">Enregistrer le Repas</button>
+    </form>
+  </div><!-- /panel-meal -->
+
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       TAB 3 — Update email
+       ════════════════════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="panel-email">
+    <p class="help-text">
+      Pour mettre à jour l'adresse email d'une réservation, entrez soit la
+      <strong>référence</strong> (ex. U2603113069 ou M0001), soit
+      <strong>l'adresse Booking.com</strong> du client
+      (ex. abc123@guest.booking.com), puis la nouvelle adresse réelle.
+    </p>
+    <form method="POST" action="/update-email" novalidate>
+      <div class="form-group">
+        <label for="identifier">Référence ou email Booking.com <span class="required">*</span></label>
+        <input type="text" id="identifier" name="identifier"
+               placeholder="ex. U2603113069  ou  abc123@guest.booking.com"
+               autocorrect="off" autocapitalize="off">
+      </div>
+      <div class="form-group">
+        <label for="new_email">Nouvelle adresse email <span class="required">*</span></label>
+        <input type="email" id="new_email" name="new_email"
+               placeholder="client@exemple.com">
+      </div>
+      <button type="submit" class="btn-update">Mettre à jour l'email</button>
+    </form>
+  </div><!-- /panel-email -->
+
+</div><!-- /container -->
 
 <script>
-  function isMealOnly() {
-    const hasRoom = document.querySelectorAll('input[name="rooms"]:checked').length > 0;
-    const hasMeal = document.getElementById('table_dhotes').checked ||
-                    document.getElementById('breakfast').checked;
-    return !hasRoom && hasMeal;
+  // ── Tab switching ──────────────────────────────────────────────────────
+  function switchTab(tab) {
+    ['room', 'meal', 'email'].forEach(function(t) {
+      document.getElementById('panel-' + t).classList.toggle('active', t === tab);
+      document.getElementById('tab-btn-' + t).classList.toggle('active', t === tab);
+    });
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', tab);
+    history.replaceState(null, '', url.toString());
   }
 
-  function updateMealMode() {
-    const deptGroup = document.getElementById('departure_group');
-    const deptInput = document.getElementById('departure_date');
-    const deptHint  = document.getElementById('departure_hint');
-    const arrInput  = document.getElementById('arrival_date');
-
-    if (isMealOnly()) {
-      deptGroup.style.opacity = '0.4';
-      deptInput.disabled = true;
-      deptInput.value = arrInput.value;
-      deptHint.style.display = '';
-    } else {
-      deptGroup.style.opacity = '';
-      deptInput.disabled = false;
-      deptHint.style.display = 'none';
-    }
-    updateNights();
-  }
-
+  // ── Room tab: nights counter ───────────────────────────────────────────
   function updateNights() {
-    const a = document.getElementById('arrival_date').value;
-    const d = document.getElementById('departure_date').value;
-    const pill = document.getElementById('nights_pill');
-    if (isMealOnly()) {
-      pill.style.display = 'none';
-      return;
-    }
+    const a    = document.getElementById('r_arrival_date').value;
+    const d    = document.getElementById('r_departure_date').value;
+    const pill = document.getElementById('r_nights_pill');
     if (a && d) {
       const nights = Math.round((new Date(d) - new Date(a)) / 86400000);
       if (nights > 0) {
         pill.textContent = nights + (nights === 1 ? ' nuit' : ' nuits');
         pill.style.display = 'block';
-      } else {
-        pill.style.display = 'none';
+        return;
       }
     }
+    pill.style.display = 'none';
   }
 
-  document.getElementById('arrival_date').addEventListener('change', function () {
-    document.getElementById('departure_date').min = this.value;
-    updateMealMode();
+  document.getElementById('r_arrival_date').addEventListener('change', function () {
+    document.getElementById('r_departure_date').min = this.value;
+    updateNights();
   });
-  document.getElementById('departure_date').addEventListener('change', updateNights);
-  document.querySelectorAll('input[name="rooms"]').forEach(cb =>
-    cb.addEventListener('change', updateMealMode)
-  );
-  document.getElementById('table_dhotes').addEventListener('change', updateMealMode);
-  document.getElementById('breakfast').addEventListener('change', updateMealMode);
+  document.getElementById('r_departure_date').addEventListener('change', updateNights);
 
-  // Run on page load in case form was re-filled after error
-  updateMealMode();
+  // ── Meal tab: brunch and petit-déjeuner are mutually exclusive ─────────
+  document.getElementById('m_brunch').addEventListener('change', function () {
+    if (this.checked) document.getElementById('m_breakfast').checked = false;
+  });
+  document.getElementById('m_breakfast').addEventListener('change', function () {
+    if (this.checked) document.getElementById('m_brunch').checked = false;
+  });
+
+  // ── Activate correct tab on load ──────────────────────────────────────
+  (function () {
+    const params = new URLSearchParams(window.location.search);
+    const tab    = params.get('tab') || 'room';
+    switchTab(['room', 'meal', 'email'].includes(tab) ? tab : 'room');
+    updateNights();
+  })();
 </script>
 </body>
 </html>

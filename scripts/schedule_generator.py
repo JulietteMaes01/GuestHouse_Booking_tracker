@@ -20,7 +20,7 @@ from datetime import datetime, timedelta, date
 import pandas as pd
 
 from auth import get_worksheet
-from config import ROOMS, GITHUB_REPO_PATH, DOCS_FOLDER, OWNER_NAME, PREPAID_SOURCES
+from config import ROOMS, GITHUB_REPO_PATH, DOCS_FOLDER, OWNER_NAME, PREPAID_SOURCES, SOURCE_ALIASES
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(message)s")
 log = logging.getLogger(__name__)
@@ -155,6 +155,11 @@ def load_data() -> pd.DataFrame:
 
     # Only active bookings
     df = df[~df["status"].str.lower().isin(["cancelled"])]
+
+    # Normalize legacy source labels (e.g. "Manual" → "Email/phone")
+    if "booking_source" in df.columns:
+        df["booking_source"] = df["booking_source"].replace(SOURCE_ALIASES)
+
     return df
 
 
@@ -213,7 +218,13 @@ def booking_card(row, booking_type: str) -> str:
     }
 
     table_dhotes = str(row.get("table_dhotes", "")).lower() in ("true", "1", "yes", "oui")
-    breakfast    = str(row.get("breakfast",    "")).lower() in ("true", "1", "yes", "oui")
+    # Breakfast: explicit flag OR auto-included for Booking.com / Website
+    breakfast    = (str(row.get("breakfast", "")).lower() in ("true", "1", "yes", "oui")
+                    or source in {"Booking.com", "Website"})
+    try:
+        guest_count = int(row.get("guest_count", "") or 0)
+    except (ValueError, TypeError):
+        guest_count = 0
 
     repeat_tag  = f'<span class="repeat-tag">⭐ Visite {visits}</span>' if repeat else ""
     td_tag      = '<span class="repeat-tag" style="background:#F5EDD8;color:#7A5020;">🍽️ Table d\'hôtes</span>' if table_dhotes else ""
@@ -254,6 +265,8 @@ def booking_card(row, booking_type: str) -> str:
         info_rows += f'<span class="info-label">Date</span><span class="info-value">{arr_str}</span>'
     else:
         info_rows += f'<span class="info-label">Séjour</span><span class="info-value">{arr_str} → {dep_str} ({nights} nuit{"s" if str(nights) != "1" else ""})</span>'
+    if guest_count:
+        info_rows += f'<span class="info-label">Personnes</span><span class="info-value">👥 {guest_count}</span>'
     if source:
         info_rows += f'<span class="info-label">Source</span><span class="info-value">{source}</span>'
     if amount:
@@ -267,6 +280,83 @@ def booking_card(row, booking_type: str) -> str:
     <div class="info-grid">{info_rows}</div>
     {action_html}{td_action}{bf_action}{notes_html}
 </div>"""
+
+
+# ── Meal prep summary ──────────────────────────────────────────────────────────
+
+def _covers(row) -> int:
+    """Return guest count for a row, defaulting to 2 for room bookings and 1 for meal-only."""
+    try:
+        n = int(row.get("guest_count", "") or 0)
+        if n > 0:
+            return n
+    except (ValueError, TypeError):
+        pass
+    is_meal_only = not any(row.get(f"room{i}") for i in range(1, 5))
+    return 1 if is_meal_only else 2
+
+
+def meal_prep_summary(df_active: pd.DataFrame, target_date: date) -> str:
+    """
+    Return an HTML summary box showing total covers per meal service for the given day.
+
+    - Table d'hôtes tonight:  active guests NOT departing today (they'll be there for dinner)
+    - Breakfast/brunch this morning: active guests NOT arriving today for a room
+      (they slept here last night) + meal-only guests arriving today with breakfast
+    """
+    lines = []
+
+    # ── Table d'hôtes tonight ──────────────────────────────────────────────
+    td_entries = []
+    for _, r in df_active.iterrows():
+        if str(r.get("table_dhotes", "")).lower() not in ("true", "1", "yes", "oui"):
+            continue
+        is_meal_only = not any(r.get(f"room{i}") for i in range(1, 5))
+        dep_date = r["departure_date"]
+        is_leaving_today = (pd.notna(dep_date) and dep_date.date() == target_date
+                            and r["arrival_date"].date() != target_date)
+        if not is_leaving_today:
+            td_entries.append((str(r.get("guest_name", "") or "?"), _covers(r)))
+
+    if td_entries:
+        total  = sum(c for _, c in td_entries)
+        detail = " + ".join(f"{n} ({c})" for n, c in td_entries)
+        lines.append(
+            f'🍽️ Table d\'hôtes ce soir : <strong>{total} couvert{"s" if total > 1 else ""}</strong>'
+            f'<span style="color:#7A8C7E;font-size:.85rem;margin-left:8px">{detail}</span>'
+        )
+
+    # ── Breakfast / brunch this morning ────────────────────────────────────
+    bf_entries = []
+    for _, r in df_active.iterrows():
+        if str(r.get("breakfast", "")).lower() not in ("true", "1", "yes", "oui"):
+            # Also auto-include Booking.com / Website if no explicit flag
+            if str(r.get("booking_source", "")) not in {"Booking.com", "Website"}:
+                continue
+        is_meal_only = not any(r.get(f"room{i}") for i in range(1, 5))
+        arr_date = r["arrival_date"]
+        # Room guests arriving today haven't slept here yet → breakfast tomorrow, not today
+        is_room_arriving_today = (not is_meal_only and arr_date.date() == target_date)
+        if not is_room_arriving_today:
+            bf_entries.append((str(r.get("guest_name", "") or "?"), _covers(r)))
+
+    if bf_entries:
+        total  = sum(c for _, c in bf_entries)
+        detail = " + ".join(f"{n} ({c})" for n, c in bf_entries)
+        lines.append(
+            f'🥐 Petit-déjeuner ce matin : <strong>{total} couvert{"s" if total > 1 else ""}</strong>'
+            f'<span style="color:#7A8C7E;font-size:.85rem;margin-left:8px">{detail}</span>'
+        )
+
+    if not lines:
+        return ""
+
+    inner = "<br>".join(lines)
+    return (
+        '<div style="background:#F5F0E8;border-radius:8px;padding:14px 16px;'
+        'margin-bottom:20px;border-left:4px solid #D4A373;font-size:.92rem;color:#3D2B1F;">'
+        f'{inner}</div>'
+    )
 
 
 # ── Daily HTML ─────────────────────────────────────────────────────────────────
@@ -337,6 +427,8 @@ def generate_daily_html(df: pd.DataFrame, target_date: date, logo_path: str) -> 
         return html
 
     # ── Today ─────────────────────────────────────────────────────────────────
+    meal_summary = meal_prep_summary(active, target_date)
+
     sections = (
         section(arrivals,   "arrival",   f"⬆ Arrivées ({len(arrivals)})") +
         section(departures, "departure", f"⬇ Départs ({len(departures)})") +
@@ -347,7 +439,7 @@ def generate_daily_html(df: pd.DataFrame, target_date: date, logo_path: str) -> 
         rooms_list = ", ".join(sorted(turnover_rooms))
         sections += f'<div class="notes-box" style="margin-top:16px">🔄 Rotation de chambre aujourd\'hui : <strong>{rooms_list}</strong></div>'
 
-    today_body = sections if sections else '<div class="empty-msg">🌿 Pas de réservation aujourd\'hui — repos bien mérité !</div>'
+    today_body = meal_summary + (sections if sections else '<div class="empty-msg">🌿 Pas de réservation aujourd\'hui — repos bien mérité !</div>')
 
     # ── Upcoming days + next week ──────────────────────────────────────────────
     tomorrow_body      = upcoming_day_section(1, "⬆ Demain")
@@ -437,10 +529,12 @@ def generate_weekly_html(df: pd.DataFrame, week_start: date, logo_path: str) -> 
         arrivals_week.get("table_dhotes", pd.Series(dtype=str)).astype(str).str.lower().isin(["true", "1", "yes", "oui"])
     ] if "table_dhotes" in arrivals_week.columns else arrivals_week.iloc[0:0]
 
-    # Breakfast this week
-    bf_week = arrivals_week[
-        arrivals_week.get("breakfast", pd.Series(dtype=str)).astype(str).str.lower().isin(["true", "1", "yes", "oui"])
-    ] if "breakfast" in arrivals_week.columns else arrivals_week.iloc[0:0]
+    # Breakfast this week — explicit flag OR auto-included for Booking.com / Website
+    _bf_flag = (arrivals_week["breakfast"].astype(str).str.lower().isin(["true", "1", "yes", "oui"])
+                if "breakfast" in arrivals_week.columns
+                else pd.Series(False, index=arrivals_week.index))
+    _bf_auto = arrivals_week["booking_source"].isin({"Booking.com", "Website"})
+    bf_week  = arrivals_week[_bf_flag | _bf_auto]
 
     # Occupancy per day
     occ_rows = ""
