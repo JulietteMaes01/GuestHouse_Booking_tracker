@@ -437,10 +437,12 @@ def generate_weekly_html(df: pd.DataFrame, week_start: date, logo_path: str) -> 
         arrivals_week.get("table_dhotes", pd.Series(dtype=str)).astype(str).str.lower().isin(["true", "1", "yes", "oui"])
     ] if "table_dhotes" in arrivals_week.columns else arrivals_week.iloc[0:0]
 
-    # Breakfast this week
-    bf_week = arrivals_week[
-        arrivals_week.get("breakfast", pd.Series(dtype=str)).astype(str).str.lower().isin(["true", "1", "yes", "oui"])
-    ] if "breakfast" in arrivals_week.columns else arrivals_week.iloc[0:0]
+    # Breakfast this week — explicit flag OR auto-included for Booking.com / Website
+    _bf_flag = (arrivals_week["breakfast"].astype(str).str.lower().isin(["true", "1", "yes", "oui"])
+                if "breakfast" in arrivals_week.columns
+                else pd.Series(False, index=arrivals_week.index))
+    _bf_auto = arrivals_week["booking_source"].isin({"Booking.com", "Website"})
+    bf_week  = arrivals_week[_bf_flag | _bf_auto]
 
     # Occupancy per day
     occ_rows = ""
