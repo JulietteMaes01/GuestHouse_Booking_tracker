@@ -36,7 +36,7 @@ NATIONALITIES = [
     "Belgique", "France", "Pays-Bas", "Allemagne", "Luxembourg",
     "Royaume-Uni", "Espagne", "Italie", "Suisse", "Autriche",
     "Portugal", "Irlande", "Danemark", "Suède", "Norvège",
-    "Pologne", "Hongrie", "Autre",
+    "Pologne", "Hongrie", "États-Unis", "Autre",
 ]
 
 # ── Phone country code → nationality (French) ─────────────────────────────────
@@ -117,7 +117,7 @@ COMMISSIONS = {
 }
 
 # Sources where guests pay in advance (show ✅ Payé on schedule)
-PREPAID_SOURCES = {"Booking.com", "Social Deal"}
+PREPAID_SOURCES = {"Booking.com", "Social Deal", "Expedia"}
 
 # ── Weekly booking goals (number of confirmed bookings per week) ───────────────
 BOOKING_GOALS = {
