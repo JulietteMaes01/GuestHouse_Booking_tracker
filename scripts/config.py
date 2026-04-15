@@ -103,8 +103,14 @@ OWNER_NAME = "Juliette Maes"
 COMMISSIONS = {
     "Booking.com": 0.15,   # 15% — update when confirmed
     "Website":     0.00,
-    "Manual":      0.00,
+    "Expedia":     0.15,   # update when confirmed
+    "Social Deal": 0.00,   # update when confirmed
+    "Email/phone": 0.00,
+    "Manual":      0.00,   # legacy label kept for existing sheet rows
 }
+
+# Sources where guests pay in advance (show ✅ Payé on schedule)
+PREPAID_SOURCES = {"Booking.com", "Social Deal"}
 
 # ── Weekly booking goals (number of confirmed bookings per week) ───────────────
 BOOKING_GOALS = {
@@ -119,5 +125,5 @@ COLUMNS = [
     "arrival_date", "departure_date", "amount",
     "guest_name", "phone", "email", "nationality", "nights",
     "cancellation_date", "modification_date", "notes",
-    "repeat_guest", "visit_count", "table_dhotes",
+    "repeat_guest", "visit_count", "table_dhotes", "breakfast",
 ]

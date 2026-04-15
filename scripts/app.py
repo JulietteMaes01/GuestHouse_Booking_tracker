@@ -20,6 +20,8 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from auth import get_worksheet
 from config import ROOMS, NATIONALITIES, COLUMNS
 
+MANUAL_SOURCES = ["Email/phone", "Social Deal", "Expedia"]
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(message)s")
 log = logging.getLogger(__name__)
 
@@ -90,18 +92,29 @@ def booking_form():
         nationality    = request.form.get("nationality", "").strip()
         amount_str     = request.form.get("amount", "").strip()
         notes          = request.form.get("notes", "").strip()
+        booking_source = request.form.get("booking_source", "Email/phone").strip()
+        if booking_source not in MANUAL_SOURCES:
+            booking_source = "Email/phone"
         table_dhotes   = request.form.get("table_dhotes") == "1"
+        breakfast      = request.form.get("breakfast") == "1"
 
         # ── Validation ────────────────────────────────────────────────────────
         errors = []
-        if not rooms_selected:
-            errors.append("Veuillez sélectionner au moins une chambre.")
-        if not arrival_str or not departure_str:
-            errors.append("Les dates d'arrivée et de départ sont obligatoires.")
+        has_meal = breakfast or table_dhotes
+        if not rooms_selected and not has_meal:
+            errors.append("Veuillez sélectionner au moins une chambre ou un service repas.")
+        if not arrival_str:
+            errors.append("La date d'arrivée est obligatoire.")
+        if rooms_selected and not departure_str:
+            errors.append("La date de départ est obligatoire.")
         if not guest_name:
             errors.append("Le nom du client est obligatoire.")
         if not phone:
             errors.append("Le numéro de téléphone est obligatoire.")
+
+        # Meal-only: no departure entered → same day as arrival
+        if not rooms_selected and not departure_str:
+            departure_str = arrival_str
 
         arrival_date = departure_date = None
         nights = 0
@@ -110,7 +123,9 @@ def booking_form():
                 arrival_date   = datetime.strptime(arrival_str,   "%Y-%m-%d").date()
                 departure_date = datetime.strptime(departure_str, "%Y-%m-%d").date()
                 nights = (departure_date - arrival_date).days
-                if nights <= 0:
+                if nights < 0:
+                    errors.append("La date de départ doit être après la date d'arrivée.")
+                elif nights == 0 and rooms_selected:
                     errors.append("La date de départ doit être après la date d'arrivée.")
             except ValueError:
                 errors.append("Format de date invalide.")
@@ -122,6 +137,7 @@ def booking_form():
                 "booking_form.html",
                 rooms=ROOMS,
                 nationalities=NATIONALITIES,
+                manual_sources=MANUAL_SOURCES,
                 form_data=request.form,
             )
 
@@ -147,11 +163,12 @@ def booking_form():
                 "booking_form.html",
                 rooms=ROOMS,
                 nationalities=NATIONALITIES,
+                manual_sources=MANUAL_SOURCES,
                 form_data=request.form,
             )
 
         row = {
-            "booking_source":    "Manual",
+            "booking_source":    booking_source,
             "booking_date":      date.today().strftime("%d/%m/%Y"),
             "email_type":        "Booking",
             "status":            "Confirmed",
@@ -174,6 +191,7 @@ def booking_form():
             "repeat_guest":      False,
             "visit_count":       1,
             "table_dhotes":      table_dhotes,
+            "breakfast":         breakfast,
         }
 
         # ── Repeat-guest detection ────────────────────────────────────────────
@@ -199,6 +217,7 @@ def booking_form():
         "booking_form.html",
         rooms=ROOMS,
         nationalities=NATIONALITIES,
+        manual_sources=MANUAL_SOURCES,
         form_data={},
     )
 
