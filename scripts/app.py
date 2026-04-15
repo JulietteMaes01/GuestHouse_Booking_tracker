@@ -82,7 +82,11 @@ def detect_repeat_guest(new_row: dict, existing_records: list) -> tuple:
 
 @app.route("/", methods=["GET", "POST"])
 def booking_form():
+    active_tab = request.args.get("tab", "room")
+
     if request.method == "POST":
+        form_type      = request.form.get("form_type", "room")
+        active_tab     = form_type  # stay on the same tab if there are errors
         rooms_selected = request.form.getlist("rooms")
         arrival_str    = request.form.get("arrival_date", "").strip()
         departure_str  = request.form.get("departure_date", "").strip()
@@ -92,28 +96,60 @@ def booking_form():
         nationality    = request.form.get("nationality", "").strip()
         amount_str     = request.form.get("amount", "").strip()
         notes          = request.form.get("notes", "").strip()
-        booking_source = request.form.get("booking_source", "Email/phone").strip()
-        if booking_source not in MANUAL_SOURCES:
+        table_dhotes      = request.form.get("table_dhotes") == "1"
+        brunch            = request.form.get("brunch") == "1"
+        breakfast         = request.form.get("breakfast") == "1" or brunch
+        guest_count_str   = request.form.get("guest_count", "").strip()
+        try:
+            guest_count = max(1, int(guest_count_str)) if guest_count_str else ""
+        except ValueError:
+            guest_count = ""
+
+        # Meal form always uses Email/phone (no source selector in that tab)
+        if form_type == "meal":
             booking_source = "Email/phone"
-        table_dhotes   = request.form.get("table_dhotes") == "1"
-        breakfast      = request.form.get("breakfast") == "1"
+        else:
+            booking_source = request.form.get("booking_source", "Email/phone").strip()
+            if booking_source not in MANUAL_SOURCES:
+                booking_source = "Email/phone"
+
+        # ── Dietary / service notes (meal form only) ──────────────────────────
+        if form_type == "meal":
+            diet_parts = []
+            if brunch:
+                diet_parts.append("☕ Brunch")
+            if request.form.get("diet_vegan")       == "1": diet_parts.append("🌱 Végétalien")
+            if request.form.get("diet_vegetarian")  == "1": diet_parts.append("🥦 Végétarien")
+            if request.form.get("diet_gluten_free") == "1": diet_parts.append("🌾 Sans gluten")
+            if request.form.get("diet_dairy_free")  == "1": diet_parts.append("🥛 Sans lactose")
+            diet_other = request.form.get("diet_other", "").strip()
+            if diet_other:
+                diet_parts.append(f"⚠️ {diet_other}")
+            if diet_parts:
+                prefix = "[" + " | ".join(diet_parts) + "]"
+                notes  = f"{prefix} {notes}".strip()
 
         # ── Validation ────────────────────────────────────────────────────────
         errors = []
-        has_meal = breakfast or table_dhotes
-        if not rooms_selected and not has_meal:
-            errors.append("Veuillez sélectionner au moins une chambre ou un service repas.")
+        if form_type == "room":
+            if not rooms_selected:
+                errors.append("Veuillez sélectionner au moins une chambre.")
+        else:  # meal
+            if not (breakfast or table_dhotes):
+                errors.append("Veuillez sélectionner au moins un service repas.")
+            if not guest_count_str:
+                errors.append("Le nombre de personnes est obligatoire pour un repas.")
         if not arrival_str:
             errors.append("La date d'arrivée est obligatoire.")
-        if rooms_selected and not departure_str:
+        if form_type == "room" and not departure_str:
             errors.append("La date de départ est obligatoire.")
         if not guest_name:
             errors.append("Le nom du client est obligatoire.")
         if not phone:
             errors.append("Le numéro de téléphone est obligatoire.")
 
-        # Meal-only: no departure entered → same day as arrival
-        if not rooms_selected and not departure_str:
+        # Meal: no departure → same day as arrival
+        if form_type == "meal" and not departure_str:
             departure_str = arrival_str
 
         arrival_date = departure_date = None
@@ -125,7 +161,7 @@ def booking_form():
                 nights = (departure_date - arrival_date).days
                 if nights < 0:
                     errors.append("La date de départ doit être après la date d'arrivée.")
-                elif nights == 0 and rooms_selected:
+                elif nights == 0 and form_type == "room":
                     errors.append("La date de départ doit être après la date d'arrivée.")
             except ValueError:
                 errors.append("Format de date invalide.")
@@ -138,6 +174,7 @@ def booking_form():
                 rooms=ROOMS,
                 nationalities=NATIONALITIES,
                 manual_sources=MANUAL_SOURCES,
+                active_tab=active_tab,
                 form_data=request.form,
             )
 
@@ -152,7 +189,7 @@ def booking_form():
         arrival_fmt   = arrival_date.strftime("%d/%m/%Y")
         departure_fmt = departure_date.strftime("%d/%m/%Y")
 
-        # ── Connect to sheet (needed for reference + repeat-guest check) ────────
+        # ── Connect to sheet ──────────────────────────────────────────────────
         try:
             ws      = get_worksheet()
             records = ws.get_all_records()
@@ -164,6 +201,7 @@ def booking_form():
                 rooms=ROOMS,
                 nationalities=NATIONALITIES,
                 manual_sources=MANUAL_SOURCES,
+                active_tab=active_tab,
                 form_data=request.form,
             )
 
@@ -192,12 +230,12 @@ def booking_form():
             "visit_count":       1,
             "table_dhotes":      table_dhotes,
             "breakfast":         breakfast,
+            "guest_count":       guest_count,
         }
 
         # ── Repeat-guest detection ────────────────────────────────────────────
         try:
             row["repeat_guest"], row["visit_count"] = detect_repeat_guest(row, records)
-
             ws.append_row(row_dict_to_list(row), value_input_option="RAW")
             log.info(f"Manual booking saved: {row['reference']} — {guest_name}")
 
@@ -207,7 +245,7 @@ def booking_form():
                 + (" — Client fidèle ! 🌟" if row["repeat_guest"] else ""),
                 "success",
             )
-            return redirect(url_for("booking_form"))
+            return redirect(url_for("booking_form") + f"?tab={form_type}")
 
         except Exception as exc:
             log.error(f"Failed to save booking: {exc}")
@@ -218,8 +256,68 @@ def booking_form():
         rooms=ROOMS,
         nationalities=NATIONALITIES,
         manual_sources=MANUAL_SOURCES,
+        active_tab=active_tab,
         form_data={},
     )
+
+
+@app.route("/update-email", methods=["POST"])
+def update_email():
+    identifier = request.form.get("identifier", "").strip()
+    new_email  = request.form.get("new_email",  "").strip()
+
+    if not identifier or not new_email:
+        flash("Identifiant et nouvelle adresse email obligatoires.", "error")
+        return redirect(url_for("booking_form") + "?tab=email")
+
+    # Decide search mode: if identifier looks like a booking reference (letter + digits), search
+    # by reference column; otherwise treat it as a (Booking.com) email address to search by.
+    search_by_ref = bool(re.match(r'^[A-Za-z]\d', identifier))
+
+    try:
+        ws         = get_worksheet()
+        all_values = ws.get_all_values()
+        if not all_values:
+            flash("Tableau vide — impossible de mettre à jour.", "error")
+            return redirect(url_for("booking_form") + "?tab=email")
+
+        headers   = all_values[0]
+        ref_col   = headers.index("reference") if "reference" in headers else None
+        email_col = headers.index("email")     if "email"     in headers else None
+
+        if ref_col is None or email_col is None:
+            flash("Colonnes 'reference' ou 'email' introuvables dans le tableau.", "error")
+            return redirect(url_for("booking_form") + "?tab=email")
+
+        updated = 0
+        for row_idx, row in enumerate(all_values[1:], start=2):
+            if search_by_ref:
+                cell_val = row[ref_col].strip().upper() if len(row) > ref_col else ""
+                match    = (cell_val == identifier.upper())
+            else:
+                cell_val = row[email_col].strip().lower() if len(row) > email_col else ""
+                match    = (cell_val == identifier.lower())
+
+            if match:
+                ws.update_cell(row_idx, email_col + 1, new_email)  # gspread is 1-indexed
+                log.info(f"Email updated ({identifier}) → {new_email}")
+                updated += 1
+                if search_by_ref:
+                    break  # reference is unique — stop after first match
+
+        if updated:
+            flash(
+                f"✓ Email mis à jour ({updated} ligne{'s' if updated > 1 else ''}) : {new_email}",
+                "success",
+            )
+        else:
+            flash(f"Identifiant « {identifier} » introuvable dans le tableau.", "error")
+
+    except Exception as exc:
+        log.error(f"Failed to update email for {identifier}: {exc}")
+        flash(f"Erreur lors de la mise à jour : {exc}", "error")
+
+    return redirect(url_for("booking_form") + "?tab=email")
 
 
 if __name__ == "__main__":
