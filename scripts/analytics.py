@@ -159,30 +159,34 @@ def load_data(include_cancelled=False):
         commission = COMMISSIONS.get(source, 0.0)
         net_amount = round(amount * (1 - commission), 2)
         # Breakfast: explicit flag OR auto-included for Booking.com / Website
-        breakfast = (str(r.get("breakfast", "")).lower() in ("true", "1", "yes", "oui")
-                     or source in {"Booking.com", "Website"})
+        breakfast_explicit = str(r.get("breakfast", "")).lower() in ("true", "1", "yes", "oui")
+        breakfast = breakfast_explicit or source in {"Booking.com", "Website"}
         try:
             guest_count = max(0, int(float(str(r.get("guest_count", "") or 0))))
         except (ValueError, TypeError):
             guest_count = 0
+        massage = str(r.get("massage", "") or "").strip()
         rows.append({
-            "source":      source,
-            "arrival":     arrival,
-            "departure":   departure,
-            "booking_d":   booking_d,
-            "rooms":       rooms_booked,
-            "amount":      amount,        # gross (what guest paid)
-            "net_amount":  net_amount,    # after commission
-            "commission":  commission,
-            "nights":      nights,
-            "nationality": _norm_nat(r.get("nationality", "")),
-            "repeat":       str(r.get("repeat_guest", "")).lower() in ("true", "1", "yes"),
-            "table_dhotes": str(r.get("table_dhotes", "")).lower() in ("true", "1", "yes", "oui"),
-            "breakfast":    breakfast,
-            "guest_count":  guest_count,
-            "is_meal_only": len(rooms_booked) == 0,
-            "status":       status,
-            "reference":    str(r.get("reference", "")),
+            "source":             source,
+            "arrival":            arrival,
+            "departure":          departure,
+            "booking_d":          booking_d,
+            "rooms":              rooms_booked,
+            "amount":             amount,        # gross (what guest paid)
+            "net_amount":         net_amount,    # after commission
+            "commission":         commission,
+            "nights":             nights,
+            "nationality":        _norm_nat(r.get("nationality", "")),
+            "repeat":             str(r.get("repeat_guest", "")).lower() in ("true", "1", "yes"),
+            "table_dhotes":       str(r.get("table_dhotes", "")).lower() in ("true", "1", "yes", "oui"),
+            "breakfast":          breakfast,
+            "breakfast_explicit": breakfast_explicit,
+            "guest_count":        guest_count,
+            "is_meal_only":       len(rooms_booked) == 0,
+            "status":             status,
+            "reference":          str(r.get("reference", "")),
+            "massage":            massage,
+            "has_massage":        bool(massage),
         })
     return rows
 
@@ -514,14 +518,16 @@ def chart_revenue_per_night(rows):
 
 
 def chart_weekly_goal(rows):
-    """Bookings per week vs the annual goal — primary = hit, accent = missed."""
+    """Bookings RECEIVED per week (by booking_date) vs the annual goal — primary = hit, accent = missed."""
 
     today = date.today()
 
-    # Group bookings by ISO week key "YYYY-Www"
+    # Group bookings by the ISO week of the booking_date (when the reservation was made)
     weekly = defaultdict(int)
     for r in rows:
-        iso = r["arrival"].isocalendar()
+        if not r["booking_d"]:
+            continue
+        iso = r["booking_d"].isocalendar()
         weekly[f"{iso[0]}-W{iso[1]:02d}"] += 1
 
     if not weekly:
@@ -532,7 +538,7 @@ def chart_weekly_goal(rows):
     fig, axes = plt.subplots(len(years), 1,
                              figsize=(13, 4 * len(years)),
                              squeeze=False)
-    fig.suptitle("Réservations par semaine vs objectif",
+    fig.suptitle("Réservations reçues par semaine vs objectif",
                  fontsize=14, fontweight="bold", color=BROWN, y=1.01)
 
     for ax, yr in zip(axes.flatten(), years):
@@ -572,7 +578,7 @@ def chart_weekly_goal(rows):
         # Goal line
         if goal:
             ax.axhline(goal, color=BROWN, linestyle="--", linewidth=1.5,
-                       label=f"Objectif: {goal}/sem.")
+                       label=f"Objectif: {goal} rés./sem.")
             ax.legend(frameon=False, fontsize=10)
 
         ymax = max(vals + [goal or 0, 1]) * 1.35
@@ -592,8 +598,8 @@ def chart_weekly_goal(rows):
             f"{yr}   ✓ {hit} sem. atteintes   ✗ {miss} manquées",
             fontsize=11, fontweight="bold", color=BROWN
         )
-        ax.set_xlabel("Semaine de l'année")
-        ax.set_ylabel("Réservations")
+        ax.set_xlabel("Semaine de l'année (date de réservation)")
+        ax.set_ylabel("Réservations reçues")
         ax.grid(axis="y", color=LIGHT, zorder=0)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
@@ -704,17 +710,19 @@ def compute_kpis(rows):
     leads     = [(r["arrival"] - r["booking_d"]).days
                  for r in rows if r["booking_d"] and r["arrival"] >= r["booking_d"]]
     med_lead  = int(np.median(leads)) if leads else 0
-    # Current week goal
+    # Current week goal — count bookings MADE this week (by booking_date)
     this_year  = date.today().year
     this_week  = date.today().isocalendar()[1]
     goal       = BOOKING_GOALS.get(this_year, 0)
     week_count = sum(1 for r in rows
-                     if r["arrival"].isocalendar()[0] == this_year
-                     and r["arrival"].isocalendar()[1] == this_week)
+                     if r["booking_d"]
+                     and r["booking_d"].isocalendar()[0] == this_year
+                     and r["booking_d"].isocalendar()[1] == this_week)
     week_kpi   = f"{week_count}/{goal}" if goal else str(week_count)
     week_icon  = "✅" if goal and week_count >= goal else "🎯"
-    td_count   = sum(1 for r in rows if r["table_dhotes"])
-    bf_count   = sum(1 for r in rows if r["breakfast"])
+    td_count      = sum(1 for r in rows if r["table_dhotes"])
+    bf_count      = sum(1 for r in rows if r["breakfast_explicit"])   # explicit only
+    massage_count = sum(1 for r in rows if r["has_massage"])
     cover_vals = [r["guest_count"] for r in rows if r["guest_count"] > 0]
     avg_covers = f"{np.mean(cover_vals):.1f}" if cover_vals else "—"
     return [
@@ -726,8 +734,9 @@ def compute_kpis(rows):
         ("📅", f"{med_lead} jours", "Délai médian de réservation"),
         (week_icon, week_kpi, f"Cette semaine (objectif {this_year})"),
         ("🍽️", f"{td_count}", "Table d'hôtes"),
-        ("🥐", f"{bf_count}", "Petit-déjeuner"),
+        ("🥐", f"{bf_count}", "Petit-déjeuner (réservé explicitement)"),
         ("👥", avg_covers, "Couverts en moyenne"),
+        ("💆", f"{massage_count}", "Massages réservés"),
     ]
 
 # ── HTML builder ──────────────────────────────────────────────────────────────
