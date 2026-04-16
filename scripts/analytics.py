@@ -7,6 +7,9 @@ Run: python analytics.py
 import os, sys, io, base64, warnings
 from collections import Counter, defaultdict
 from datetime import datetime, date, timedelta
+from zoneinfo import ZoneInfo
+
+_TZ = ZoneInfo("Europe/Brussels")
 
 import matplotlib
 matplotlib.use("Agg")
@@ -729,7 +732,7 @@ def compute_kpis(rows):
 
 # ── HTML builder ──────────────────────────────────────────────────────────────
 def build_html(kpis, charts):
-    now = datetime.now().strftime("%d/%m/%Y %H:%M")
+    now = datetime.now(_TZ).strftime("%d/%m/%Y %H:%M")
 
     def card(b64, title, note=""):
         note_html = f'<p class="note">{note}</p>' if note else ""
