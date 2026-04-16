@@ -32,6 +32,17 @@ ROOMS = [
     "Léon de la Cour",
 ]
 
+MASSAGE_OPTIONS = [
+    "Réflexologie 1h (55€)",
+    "3 séances réflexologie (120€)",
+    "Massage détente pieds 30min (40€)",
+    "Massage détente dos/arrière jambes 60min (65€)",
+    "Massage détente corps entier 90min (95€)",
+    "Massage du dos 30min (30€)",
+    "Massage du dos 45min (45€)",
+    "Massage des 5 continents 1h15 (80€)",
+]
+
 NATIONALITIES = [
     "Belgique", "France", "Pays-Bas", "Allemagne", "Luxembourg",
     "Royaume-Uni", "Espagne", "Italie", "Suisse", "Autriche",
@@ -132,5 +143,5 @@ COLUMNS = [
     "arrival_date", "departure_date", "amount",
     "guest_name", "phone", "email", "nationality", "nights",
     "cancellation_date", "modification_date", "notes",
-    "repeat_guest", "visit_count", "table_dhotes", "breakfast", "guest_count",
+    "repeat_guest", "visit_count", "table_dhotes", "breakfast", "guest_count", "massage",
 ]

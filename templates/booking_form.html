@@ -184,9 +184,10 @@
 
 <!-- ── Tab navigation ─────────────────────────────────────────────────── -->
 <div class="tabs">
-  <button class="tab-btn" id="tab-btn-room"  onclick="switchTab('room')">🛏️ Chambre</button>
-  <button class="tab-btn" id="tab-btn-meal"  onclick="switchTab('meal')">🍽️ Repas seul</button>
-  <button class="tab-btn" id="tab-btn-email" onclick="switchTab('email')">✏️ Modifier email</button>
+  <button class="tab-btn" id="tab-btn-room"   onclick="switchTab('room')">🛏️ Chambre</button>
+  <button class="tab-btn" id="tab-btn-meal"   onclick="switchTab('meal')">🍽️ Repas seul</button>
+  <button class="tab-btn" id="tab-btn-email"  onclick="switchTab('email')">✏️ Email</button>
+  <button class="tab-btn" id="tab-btn-extras" onclick="switchTab('extras')">➕ Extras</button>
 </div>
 
 <div class="container">
@@ -316,6 +317,29 @@
           🥐 Petit-déjeuner inclus
         </label>
       </div>
+      <!-- Massage -->
+      <div class="form-group">
+        <label for="r_massage_type">💆 Massage <span class="optional">(service externe — paiement direct à la masseuse)</span></label>
+        <select id="r_massage_type" name="massage_type"
+                onchange="document.getElementById('r_duo_row').style.display=this.value?'block':'none'">
+          <option value="">— Aucun massage —</option>
+          {% for opt in massage_options %}
+          <option value="{{ opt }}"
+            {% if active_tab == 'room' and form_data.get('massage_type') == opt %}selected{% endif %}>
+            {{ opt }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" id="r_duo_row"
+           style="display:{{ 'block' if (active_tab == 'room' and form_data.get('massage_type')) else 'none' }}">
+        <label class="option-row" style="cursor:pointer;">
+          <input type="checkbox" name="massage_duo" value="1"
+                 {% if active_tab == 'room' and form_data.get('massage_duo') == '1' %}checked{% endif %}>
+          👫 En duo
+        </label>
+      </div>
+
       <div class="form-group">
         <label for="r_notes">Notes <span class="optional">(facultatif)</span></label>
         <textarea id="r_notes" name="notes"
@@ -448,6 +472,30 @@
                placeholder="0.00"
                value="{{ form_data.get('amount', '') if active_tab == 'meal' else '' }}">
       </div>
+
+      <!-- Massage -->
+      <div class="form-group">
+        <label for="m_massage_type">💆 Massage <span class="optional">(service externe — paiement direct à la masseuse)</span></label>
+        <select id="m_massage_type" name="massage_type"
+                onchange="document.getElementById('m_duo_row').style.display=this.value?'block':'none'">
+          <option value="">— Aucun massage —</option>
+          {% for opt in massage_options %}
+          <option value="{{ opt }}"
+            {% if active_tab == 'meal' and form_data.get('massage_type') == opt %}selected{% endif %}>
+            {{ opt }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" id="m_duo_row"
+           style="display:{{ 'block' if (active_tab == 'meal' and form_data.get('massage_type')) else 'none' }}">
+        <label class="option-row" style="cursor:pointer;">
+          <input type="checkbox" name="massage_duo" value="1"
+                 {% if active_tab == 'meal' and form_data.get('massage_duo') == '1' %}checked{% endif %}>
+          👫 En duo
+        </label>
+      </div>
+
       <div class="form-group">
         <label for="m_notes">Notes <span class="optional">(facultatif)</span></label>
         <textarea id="m_notes" name="notes"
@@ -485,12 +533,73 @@
     </form>
   </div><!-- /panel-email -->
 
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       TAB 4 — Add extras to existing booking
+       ════════════════════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="panel-extras">
+    <p class="help-text">
+      Ajoutez une <strong>table d'hôtes</strong> ou un <strong>massage</strong>
+      à une réservation existante (ex. client Booking.com qui envoie un email).
+      Entrez la référence de réservation (ex. <em>U2604160349</em> ou <em>M0026</em>).
+    </p>
+    <form method="POST" action="/update-booking" novalidate>
+      <div class="form-group">
+        <label for="e_reference">Référence de réservation <span class="required">*</span></label>
+        <input type="text" id="e_reference" name="reference"
+               placeholder="ex. U2604160349 ou M0026"
+               autocorrect="off" autocapitalize="off" required>
+      </div>
+
+      <hr class="divider">
+
+      <div class="form-group">
+        <label class="option-row" style="cursor:pointer;">
+          <input type="checkbox" name="table_dhotes" value="1" id="e_table_dhotes">
+          🍽️ Table d'hôtes
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label for="e_massage_type">💆 Massage <span class="optional">(service externe — paiement direct à la masseuse)</span></label>
+        <select id="e_massage_type" name="massage_type"
+                onchange="document.getElementById('e_duo_row').style.display=this.value?'block':'none'">
+          <option value="">— Aucun massage —</option>
+          {% for opt in massage_options %}
+          <option value="{{ opt }}">{{ opt }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" id="e_duo_row" style="display:none">
+        <label class="option-row" style="cursor:pointer;">
+          <input type="checkbox" name="massage_duo" value="1">
+          👫 En duo
+        </label>
+      </div>
+
+      <hr class="divider">
+
+      <div class="form-group">
+        <label for="e_guest_count">Nombre de personnes <span class="optional">(laisser vide pour ne pas modifier)</span></label>
+        <input type="number" id="e_guest_count" name="guest_count" min="1" max="50"
+               placeholder="ex. 2">
+      </div>
+      <div class="form-group">
+        <label for="e_notes_extra">Notes <span class="optional">(sera ajouté aux notes existantes)</span></label>
+        <textarea id="e_notes_extra" name="notes_extra" rows="2"
+                  placeholder="ex. allergie aux noix, chambre calme…"></textarea>
+      </div>
+
+      <button type="submit" class="btn-update">Mettre à jour la réservation</button>
+    </form>
+  </div><!-- /panel-extras -->
+
 </div><!-- /container -->
 
 <script>
   // ── Tab switching ──────────────────────────────────────────────────────
   function switchTab(tab) {
-    ['room', 'meal', 'email'].forEach(function(t) {
+    ['room', 'meal', 'email', 'extras'].forEach(function(t) {
       document.getElementById('panel-' + t).classList.toggle('active', t === tab);
       document.getElementById('tab-btn-' + t).classList.toggle('active', t === tab);
     });
@@ -533,7 +642,7 @@
   (function () {
     const params = new URLSearchParams(window.location.search);
     const tab    = params.get('tab') || 'room';
-    switchTab(['room', 'meal', 'email'].includes(tab) ? tab : 'room');
+    switchTab(['room', 'meal', 'email', 'extras'].includes(tab) ? tab : 'room');
     updateNights();
   })();
 </script>

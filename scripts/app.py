@@ -18,7 +18,7 @@ from datetime import datetime, date
 from flask import Flask, render_template, request, redirect, url_for, flash
 
 from auth import get_worksheet
-from config import ROOMS, NATIONALITIES, COLUMNS
+from config import ROOMS, NATIONALITIES, COLUMNS, MASSAGE_OPTIONS
 
 MANUAL_SOURCES = ["Email/phone", "Social Deal", "Expedia"]
 
@@ -105,6 +105,10 @@ def booking_form():
         except ValueError:
             guest_count = ""
 
+        massage_type = request.form.get("massage_type", "").strip()
+        massage_duo  = request.form.get("massage_duo") == "1"
+        massage      = (massage_type + (" · Duo" if massage_duo else "")) if massage_type else ""
+
         # Meal form always uses Email/phone (no source selector in that tab)
         if form_type == "meal":
             booking_source = "Email/phone"
@@ -174,6 +178,7 @@ def booking_form():
                 rooms=ROOMS,
                 nationalities=NATIONALITIES,
                 manual_sources=MANUAL_SOURCES,
+                massage_options=MASSAGE_OPTIONS,
                 active_tab=active_tab,
                 form_data=request.form,
             )
@@ -201,6 +206,7 @@ def booking_form():
                 rooms=ROOMS,
                 nationalities=NATIONALITIES,
                 manual_sources=MANUAL_SOURCES,
+                massage_options=MASSAGE_OPTIONS,
                 active_tab=active_tab,
                 form_data=request.form,
             )
@@ -231,6 +237,7 @@ def booking_form():
             "table_dhotes":      table_dhotes,
             "breakfast":         breakfast,
             "guest_count":       guest_count,
+            "massage":           massage,
         }
 
         # ── Repeat-guest detection ────────────────────────────────────────────
@@ -256,6 +263,7 @@ def booking_form():
         rooms=ROOMS,
         nationalities=NATIONALITIES,
         manual_sources=MANUAL_SOURCES,
+        massage_options=MASSAGE_OPTIONS,
         active_tab=active_tab,
         form_data={},
     )
@@ -318,6 +326,71 @@ def update_email():
         flash(f"Erreur lors de la mise à jour : {exc}", "error")
 
     return redirect(url_for("booking_form") + "?tab=email")
+
+
+@app.route("/update-booking", methods=["POST"])
+def update_booking():
+    reference       = request.form.get("reference", "").strip().upper()
+    table_dhotes    = request.form.get("table_dhotes") == "1"
+    massage_type    = request.form.get("massage_type", "").strip()
+    massage_duo     = request.form.get("massage_duo") == "1"
+    massage         = (massage_type + (" · Duo" if massage_duo else "")) if massage_type else ""
+    guest_count_str = request.form.get("guest_count", "").strip()
+    notes_extra     = request.form.get("notes_extra", "").strip()
+
+    if not reference:
+        flash("Référence de réservation obligatoire.", "error")
+        return redirect(url_for("booking_form") + "?tab=extras")
+
+    try:
+        ws         = get_worksheet()
+        all_values = ws.get_all_values()
+        if not all_values:
+            flash("Tableau vide — impossible de mettre à jour.", "error")
+            return redirect(url_for("booking_form") + "?tab=extras")
+
+        headers     = all_values[0]
+        ref_col     = headers.index("reference")          if "reference"          in headers else None
+        td_col      = headers.index("table_dhotes")       if "table_dhotes"       in headers else None
+        massage_col = headers.index("massage")            if "massage"            in headers else None
+        gc_col      = headers.index("guest_count")        if "guest_count"        in headers else None
+        notes_col   = headers.index("notes")              if "notes"              in headers else None
+        mod_col     = headers.index("modification_date")  if "modification_date"  in headers else None
+
+        updated = 0
+        for row_idx, row in enumerate(all_values[1:], start=2):
+            cell_val = row[ref_col].strip().upper() if ref_col is not None and len(row) > ref_col else ""
+            if cell_val != reference:
+                continue
+            if td_col is not None:
+                ws.update_cell(row_idx, td_col + 1, str(table_dhotes))
+            if massage_col is not None:
+                ws.update_cell(row_idx, massage_col + 1, massage)
+            if gc_col is not None and guest_count_str:
+                try:
+                    ws.update_cell(row_idx, gc_col + 1, max(1, int(guest_count_str)))
+                except ValueError:
+                    pass
+            if notes_col is not None and notes_extra:
+                existing  = row[notes_col].strip() if len(row) > notes_col else ""
+                new_notes = f"{existing} | {notes_extra}".strip(" |") if existing else notes_extra
+                ws.update_cell(row_idx, notes_col + 1, new_notes)
+            if mod_col is not None:
+                ws.update_cell(row_idx, mod_col + 1, date.today().strftime("%d/%m/%Y"))
+            log.info(f"Extras updated for {reference} — td={table_dhotes}, massage={massage!r}")
+            updated += 1
+            break  # reference is unique
+
+        if updated:
+            flash(f"✓ Réservation {reference} mise à jour.", "success")
+        else:
+            flash(f"Référence « {reference} » introuvable dans le tableau.", "error")
+
+    except Exception as exc:
+        log.error(f"Failed to update booking {reference}: {exc}")
+        flash(f"Erreur lors de la mise à jour : {exc}", "error")
+
+    return redirect(url_for("booking_form") + "?tab=extras")
 
 
 if __name__ == "__main__":

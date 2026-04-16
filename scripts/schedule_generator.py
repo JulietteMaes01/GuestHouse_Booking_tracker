@@ -23,7 +23,7 @@ _TZ = ZoneInfo("Europe/Brussels")
 import pandas as pd
 
 from auth import get_worksheet
-from config import ROOMS, GITHUB_REPO_PATH, DOCS_FOLDER, OWNER_NAME, PREPAID_SOURCES, SOURCE_ALIASES
+from config import ROOMS, GITHUB_REPO_PATH, DOCS_FOLDER, OWNER_NAME, PREPAID_SOURCES, SOURCE_ALIASES, MASSAGE_OPTIONS
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(message)s")
 log = logging.getLogger(__name__)
@@ -228,13 +228,22 @@ def booking_card(row, booking_type: str) -> str:
         guest_count = int(row.get("guest_count", "") or 0)
     except (ValueError, TypeError):
         guest_count = 0
+    massage = str(row.get("massage", "") or "").strip()
 
     repeat_tag  = f'<span class="repeat-tag">⭐ Visite {visits}</span>' if repeat else ""
     td_tag      = '<span class="repeat-tag" style="background:#F5EDD8;color:#7A5020;">🍽️ Table d\'hôtes</span>' if table_dhotes else ""
     bf_tag      = '<span class="repeat-tag" style="background:#FFFDE7;color:#F57F17;">🥐 Petit-déjeuner</span>' if breakfast else ""
+    massage_tag = (f'<span class="repeat-tag" style="background:#EDE7F6;color:#512DA8;">💆 {massage}</span>'
+                   if massage else "")
 
+    # Payment: prepaid sources with table d'hôtes still owe that on-site (massage is external)
+    has_extras = bool(table_dhotes)
     if source in PREPAID_SOURCES:
-        payment_tag = '<span class="repeat-tag" style="background:#E8F5E9;color:#2E7D32;">✅ Payé</span>'
+        if has_extras:
+            payment_tag = ('<span class="repeat-tag" style="background:#E8F5E9;color:#2E7D32;">✅ Chambre payée</span>'
+                           ' <span class="repeat-tag" style="background:#FFF3E0;color:#E65100;">💳 Table d\'hôtes à régler</span>')
+        else:
+            payment_tag = '<span class="repeat-tag" style="background:#E8F5E9;color:#2E7D32;">✅ Payé</span>'
     elif source:
         payment_tag = '<span class="repeat-tag" style="background:#FFF3E0;color:#E65100;">💳 À régler</span>'
     else:
@@ -244,8 +253,10 @@ def booking_card(row, booking_type: str) -> str:
     action_html = ""
     if booking_type in action_texts and not is_meal_only:
         action_html = f'<div class="action-box">⚠ {action_texts[booking_type]}</div>'
-    td_action  = '<div class="action-box" style="background:#FDF3E8;color:#7A4A1E;">🍽️ Prévoir le dîner Table d\'hôtes pour ce séjour.</div>' if table_dhotes else ""
-    bf_action  = '<div class="action-box" style="background:#FFFDE7;color:#B45309;">🥐 Prévoir le petit-déjeuner pour ce séjour.</div>' if breakfast else ""
+    td_action      = '<div class="action-box" style="background:#FDF3E8;color:#7A4A1E;">🍽️ Prévoir le dîner Table d\'hôtes pour ce séjour.</div>' if table_dhotes else ""
+    bf_action      = '<div class="action-box" style="background:#FFFDE7;color:#B45309;">🥐 Prévoir le petit-déjeuner pour ce séjour.</div>' if breakfast else ""
+    massage_action = (f'<div class="action-box" style="background:#EDE7F6;color:#512DA8;">💆 Massage réservé : {massage} — contacter la masseuse.</div>'
+                      if massage else "")
     notes_html = f'<div class="notes-box">📝 {notes}</div>' if notes else ""
 
     # Room badge — or a "🍽️ Repas" badge for meal-only entries
@@ -278,10 +289,10 @@ def booking_card(row, booking_type: str) -> str:
     return f"""
 <div class="card {booking_type}">
     <span class="badge {booking_type}">{badge_labels[booking_type]}</span>
-    <div class="guest-name">{name}{repeat_tag}{td_tag}{bf_tag}{payment_tag}</div>
+    <div class="guest-name">{name}{repeat_tag}{td_tag}{bf_tag}{massage_tag}{payment_tag}</div>
     {rooms_html}
     <div class="info-grid">{info_rows}</div>
-    {action_html}{td_action}{bf_action}{notes_html}
+    {action_html}{td_action}{bf_action}{massage_action}{notes_html}
 </div>"""
 
 
