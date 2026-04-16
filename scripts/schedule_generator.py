@@ -16,6 +16,9 @@ import shutil
 import subprocess
 import logging
 from datetime import datetime, timedelta, date
+from zoneinfo import ZoneInfo
+
+_TZ = ZoneInfo("Europe/Brussels")
 
 import pandas as pd
 
@@ -494,7 +497,7 @@ def generate_daily_html(df: pd.DataFrame, target_date: date, logo_path: str) -> 
 {nav}
 <div class="container">{body}
 </div>
-<footer>Généré le {datetime.now().strftime("%d/%m/%Y à %H:%M")} · {OWNER_NAME}</footer>
+<footer>Généré le {datetime.now(_TZ).strftime("%d/%m/%Y à %H:%M")} · {OWNER_NAME}</footer>
 </body>
 </html>"""
 
@@ -633,7 +636,7 @@ def generate_weekly_html(df: pd.DataFrame, week_start: date, logo_path: str) -> 
 
   {repeat_html}
 </div>
-<footer>Généré le {datetime.now().strftime("%d/%m/%Y à %H:%M")} · {OWNER_NAME}</footer>
+<footer>Généré le {datetime.now(_TZ).strftime("%d/%m/%Y à %H:%M")} · {OWNER_NAME}</footer>
 </body>
 </html>"""
 
