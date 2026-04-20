@@ -489,7 +489,11 @@ def generate_daily_html(df: pd.DataFrame, target_date: date, logo_path: str) -> 
 </details>
 """
 
-    nav = '<nav><a href="index.html">Aujourd\'hui</a> | <a href="weekly.html">Cette semaine</a></nav>'
+    nav = ('<nav>'
+           '<a href="index.html">Aujourd\'hui</a> | '
+           '<a href="weekly.html">Cette semaine</a> | '
+           '<a href="analytics.html">📊 Analytiques</a>'
+           '</nav>')
 
     return f"""<!DOCTYPE html>
 <html lang="fr">
@@ -588,7 +592,11 @@ def generate_weekly_html(df: pd.DataFrame, week_start: date, logo_path: str) -> 
                   f"{DAYS_FR[week_end.weekday()]} {week_end.day} "
                   f"{MONTHS_FR[week_end.month]} {week_end.year}")
 
-    nav = '<nav><a href="index.html">Aujourd\'hui</a> | <a href="weekly.html">Cette semaine</a></nav>'
+    nav = ('<nav>'
+           '<a href="index.html">Aujourd\'hui</a> | '
+           '<a href="weekly.html">Cette semaine</a> | '
+           '<a href="analytics.html">📊 Analytiques</a>'
+           '</nav>')
 
     return f"""<!DOCTYPE html>
 <html lang="fr">

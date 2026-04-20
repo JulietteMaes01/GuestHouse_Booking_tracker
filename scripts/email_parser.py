@@ -138,7 +138,7 @@ def _parse_guest_name(text: str) -> str:
     )
 
 
-def parse_email(subject: str, body: str, received_ts: int) -> dict | None:
+def parse_email(subject: str, body: str, received_ts: int, from_header: str = "") -> dict | None:
     """
     Parse a single elloha email.
     Returns a dict describing the event, or None if unrecognisable.
@@ -171,8 +171,20 @@ def parse_email(subject: str, body: str, received_ts: int) -> dict | None:
         log.warning(f"Could not extract reference from: {subject!r}")
         return None
 
-    # ── Booking source ────────────────────────────────────────────────────────
-    booking_source = "Booking.com" if reference.startswith("U") else "Website"
+    # ── Booking source — determined from the From display name ───────────────
+    # "BOOKING <no-reply@elloha.com>"       → Booking.com
+    # "EXPEDIA <no-reply@elloha.com>"       → Expedia
+    # "Ferme de la Cour <no-reply@elloha.com>" → Website
+    _from_lower = from_header.lower()
+    if "expedia" in _from_lower:
+        booking_source = "Expedia"
+    elif "booking" in _from_lower:
+        booking_source = "Booking.com"
+    elif "ferme" in _from_lower or reference.startswith("P"):
+        booking_source = "Website"
+    else:
+        # Fallback: U-prefix historically means Booking.com, P means Website
+        booking_source = "Booking.com" if reference.startswith("U") else "Website"
 
     # ── Received date ─────────────────────────────────────────────────────────
     received_dt  = datetime.fromtimestamp(received_ts / 1000)
@@ -382,7 +394,7 @@ def _fetch_booking_from_gmail(service, ref: str) -> dict | None:
             subject = str(hdr.get("Subject", ""))
             ts      = int(msg.get("internalDate", 0))
             body    = get_email_text(msg["payload"])
-            parsed  = parse_email(subject, body, ts)
+            parsed  = parse_email(subject, body, ts, from_header=hdr.get("From", ""))
             if (parsed and parsed.get("email_type") == "Booking"
                     and parsed.get("reference") == ref):
                 return parsed
@@ -520,7 +532,7 @@ def run():
             subject = str(hdr.get("Subject", ""))
             ts      = int(msg.get("internalDate", 0))
             body    = get_email_text(msg["payload"])
-            row     = parse_email(subject, body, ts)
+            row     = parse_email(subject, body, ts, from_header=hdr.get("From", ""))
             if row is None:
                 skipped_fetch += 1
                 continue
