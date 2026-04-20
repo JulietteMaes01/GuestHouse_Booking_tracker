@@ -7,6 +7,9 @@ Run: python analytics.py
 import os, sys, io, base64, warnings
 from collections import Counter, defaultdict
 from datetime import datetime, date, timedelta
+from zoneinfo import ZoneInfo
+
+_TZ = ZoneInfo("Europe/Brussels")
 
 import matplotlib
 matplotlib.use("Agg")
@@ -729,7 +732,7 @@ def compute_kpis(rows):
 
 # ── HTML builder ──────────────────────────────────────────────────────────────
 def build_html(kpis, charts):
-    now = datetime.now().strftime("%d/%m/%Y %H:%M")
+    now = datetime.now(_TZ).strftime("%d/%m/%Y %H:%M")
 
     def card(b64, title, note=""):
         note_html = f'<p class="note">{note}</p>' if note else ""
@@ -787,6 +790,13 @@ def build_html(kpis, charts):
   .chart-card img {{ width: 100%; height: auto; border-radius: 6px; }}
   .note {{ font-size: 0.8rem; color: #9E9E9E; margin-top: 10px; font-style: italic; }}
   footer {{ text-align: center; padding: 20px; font-size: 0.8rem; color: {GOLD}; }}
+  nav   {{ display: flex; justify-content: center; background: white;
+           border-bottom: 2px solid {GOLD}; margin-bottom: 0; }}
+  nav a {{ color: {SECONDARY}; text-decoration: none; padding: 12px 20px;
+           font-weight: 600; font-size: .88rem; border-bottom: 3px solid transparent;
+           margin-bottom: -2px; transition: color .15s; }}
+  nav a:hover  {{ color: {BROWN}; }}
+  nav a.active {{ color: {BROWN}; border-bottom-color: {BROWN}; }}
   @media (max-width: 600px) {{ .grid {{ grid-template-columns: 1fr; padding: 16px; }} }}
 </style>
 </head>
@@ -795,6 +805,12 @@ def build_html(kpis, charts):
   <h1>🏡 La Ferme de la Cour — Analytiques</h1>
   <p>Mis à jour le {now}</p>
 </header>
+<nav>
+  <a href="index.html">📅 Aujourd'hui</a>
+  <a href="weekly.html">📆 Cette semaine</a>
+  <a href="upcoming.html">🗓️ Semaines prochaines</a>
+  <a href="analytics.html" class="active">📊 Analytiques</a>
+</nav>
 <section class="kpis">{kpi_html}</section>
 <section class="grid">{charts_html}</section>
 <footer>La Ferme de la Cour · Généré automatiquement</footer>

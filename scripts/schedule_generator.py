@@ -16,6 +16,9 @@ import shutil
 import subprocess
 import logging
 from datetime import datetime, timedelta, date
+from zoneinfo import ZoneInfo
+
+_TZ = ZoneInfo("Europe/Brussels")
 
 import pandas as pd
 
@@ -104,10 +107,13 @@ tr:hover     { background: #F1EFE7; }
                border-radius: 4px; vertical-align: middle; margin-right: 6px; }
 footer       { text-align: center; color: #A8B8AC; font-size: .78rem;
                margin: 32px 0 16px; }
-nav          { text-align: center; margin: 16px 0; }
-nav a        { color: var(--primary); text-decoration: none; margin: 0 10px;
-               font-weight: 600; font-size: .9rem; }
-nav a:hover  { text-decoration: underline; }
+nav          { display: flex; justify-content: center; background: var(--card-bg);
+               border-bottom: 2px solid var(--accent); margin-bottom: 0; }
+nav a        { color: var(--secondary); text-decoration: none; padding: 12px 20px;
+               font-weight: 600; font-size: .88rem; border-bottom: 3px solid transparent;
+               margin-bottom: -2px; transition: color .15s; }
+nav a:hover  { color: var(--primary); }
+nav a.active { color: var(--primary); border-bottom-color: var(--primary); }
 @media (max-width: 520px) {
     header h1   { font-size: 1.2rem; }
     .info-grid  { grid-template-columns: 1fr; }
@@ -359,6 +365,57 @@ def meal_prep_summary(df_active: pd.DataFrame, target_date: date) -> str:
     )
 
 
+# ── Nav helper ────────────────────────────────────────────────────────────────
+
+def _nav_html(active: str) -> str:
+    """Return 4-tab nav HTML.  active = filename of current page, e.g. 'index.html'."""
+    tabs = [
+        ("index.html",    "📅 Aujourd'hui"),
+        ("weekly.html",   "📆 Cette semaine"),
+        ("upcoming.html", "🗓️ Semaines prochaines"),
+        ("analytics.html","📊 Analytiques"),
+    ]
+    links = ""
+    for href, label in tabs:
+        cls = ' class="active"' if href == active else ""
+        links += f'<a href="{href}"{cls}>{label}</a>'
+    return f"<nav>{links}</nav>"
+
+
+# ── Shared day-section helpers ─────────────────────────────────────────────────
+
+def upcoming_day_section(df: pd.DataFrame, target_date: date,
+                         day_offset: int, label: str = "") -> str:
+    """Arrivals + departures card-block for one day offset from target_date."""
+    d   = target_date + timedelta(days=day_offset)
+    arr = df[df["arrival_date"].dt.date == d]
+    dep = df[(df["departure_date"].dt.date == d) & (df["arrival_date"].dt.date != d)]
+    full_label = f"{label} — {fmt_date(d)}" if label else fmt_date(d)
+    if arr.empty and dep.empty:
+        return (f'<div class="section-title">{full_label}</div>'
+                '<div class="empty-msg" style="padding:16px">Rien de prévu</div>')
+    html  = f'<div class="section-title">{full_label}</div>'
+    html += "".join(booking_card(row, "arrival")   for _, row in arr.iterrows())
+    html += "".join(booking_card(row, "departure") for _, row in dep.iterrows())
+    return html
+
+
+def next_week_section(df: pd.DataFrame, week_start_date: date, week_number: int) -> str:
+    """All arrivals for one upcoming calendar week."""
+    week_end = week_start_date + timedelta(days=6)
+    arr = df[(df["arrival_date"].dt.date >= week_start_date) &
+             (df["arrival_date"].dt.date <= week_end)]
+    label = (f"Semaine +{week_number} : {DAYS_FR[week_start_date.weekday()]} "
+             f"{week_start_date.day}/{week_start_date.month}"
+             f" – {DAYS_FR[week_end.weekday()]} {week_end.day}/{week_end.month}")
+    if arr.empty:
+        return (f'<div class="section-title">📆 {label}</div>'
+                '<div class="empty-msg" style="padding:16px">Aucune arrivée</div>')
+    html  = f'<div class="section-title">📆 {label}</div>'
+    html += "".join(booking_card(row, "arrival") for _, row in arr.iterrows())
+    return html
+
+
 # ── Daily HTML ─────────────────────────────────────────────────────────────────
 
 def generate_daily_html(df: pd.DataFrame, target_date: date, logo_path: str) -> str:
@@ -399,33 +456,6 @@ def generate_daily_html(df: pd.DataFrame, target_date: date, logo_path: str) -> 
         cards = "".join(booking_card(row, btype) for _, row in bookings.iterrows())
         return f'<div class="section-title">{title}</div>{cards}'
 
-    def upcoming_day_section(day_offset, label):
-        """Compact arrivals summary for tomorrow / day after tomorrow."""
-        d   = target_date + timedelta(days=day_offset)
-        dt  = pd.Timestamp(d)
-        arr = df[(df["arrival_date"].dt.date == d)]
-        dep = df[(df["departure_date"].dt.date == d) & (df["arrival_date"].dt.date != d)]
-        if arr.empty and dep.empty:
-            return f'<div class="section-title">{label} — {fmt_date(d)}</div><div class="empty-msg" style="padding:16px">Rien de prévu</div>'
-        html = f'<div class="section-title">{label} — {fmt_date(d)}</div>'
-        html += "".join(booking_card(row, "arrival")   for _, row in arr.iterrows())
-        html += "".join(booking_card(row, "departure") for _, row in dep.iterrows())
-        return html
-
-    def next_week_section(week_start_date, week_number: int):
-        """Summary of all arrivals for one upcoming calendar week."""
-        week_end = week_start_date + timedelta(days=6)
-        arr = df[(df["arrival_date"].dt.date >= week_start_date) &
-                 (df["arrival_date"].dt.date <= week_end)]
-        label = (f"Semaine +{week_number} : {DAYS_FR[week_start_date.weekday()]} "
-                 f"{week_start_date.day}/{week_start_date.month}"
-                 f" – {DAYS_FR[week_end.weekday()]} {week_end.day}/{week_end.month}")
-        if arr.empty:
-            return f'<div class="section-title">📆 {label}</div><div class="empty-msg" style="padding:16px">Aucune arrivée</div>'
-        html = f'<div class="section-title">📆 {label}</div>'
-        html += "".join(booking_card(row, "arrival") for _, row in arr.iterrows())
-        return html
-
     # ── Today ─────────────────────────────────────────────────────────────────
     meal_summary = meal_prep_summary(active, target_date)
 
@@ -441,41 +471,20 @@ def generate_daily_html(df: pd.DataFrame, target_date: date, logo_path: str) -> 
 
     today_body = meal_summary + (sections if sections else '<div class="empty-msg">🌿 Pas de réservation aujourd\'hui — repos bien mérité !</div>')
 
-    # ── Upcoming days + next week ──────────────────────────────────────────────
-    tomorrow_body      = upcoming_day_section(1, "⬆ Demain")
-    day_after_body     = upcoming_day_section(2, "⬆ Après-demain")
-    next_week_start    = target_date + timedelta(days=(7 - target_date.weekday()))
-    week_after_start   = next_week_start + timedelta(days=7)
-    next_week_body     = next_week_section(next_week_start,  1)
-    week_after_body    = next_week_section(week_after_start, 2)
+    # ── Next 6 days flat ──────────────────────────────────────────────────────
+    upcoming_body = ""
+    for offset in range(1, 7):
+        if offset == 1:
+            lbl = "⬆ Demain"
+        elif offset == 2:
+            lbl = "⬆ Après-demain"
+        else:
+            lbl = ""
+        upcoming_body += upcoming_day_section(df, target_date, offset, lbl)
 
-    body = f"""
-{today_body}
-<details open style="margin-top:24px">
-  <summary style="cursor:pointer;font-weight:700;color:var(--primary);font-size:.85rem;
-                  text-transform:uppercase;letter-spacing:1.5px;padding:8px 0;
-                  border-bottom:2px solid var(--accent);">
-    📅 À venir (demain &amp; après-demain)
-  </summary>
-  <div style="margin-top:12px">
-    {tomorrow_body}
-    {day_after_body}
-  </div>
-</details>
-<details style="margin-top:16px">
-  <summary style="cursor:pointer;font-weight:700;color:var(--primary);font-size:.85rem;
-                  text-transform:uppercase;letter-spacing:1.5px;padding:8px 0;
-                  border-bottom:2px solid var(--accent);">
-    📆 Semaines prochaines
-  </summary>
-  <div style="margin-top:12px">
-    {next_week_body}
-    {week_after_body}
-  </div>
-</details>
-"""
+    body = today_body + upcoming_body
 
-    nav = '<nav><a href="index.html">Aujourd\'hui</a> | <a href="weekly.html">Cette semaine</a></nav>'
+    nav = _nav_html("index.html")
 
     return f"""<!DOCTYPE html>
 <html lang="fr">
@@ -494,7 +503,7 @@ def generate_daily_html(df: pd.DataFrame, target_date: date, logo_path: str) -> 
 {nav}
 <div class="container">{body}
 </div>
-<footer>Généré le {datetime.now().strftime("%d/%m/%Y à %H:%M")} · {OWNER_NAME}</footer>
+<footer>Généré le {datetime.now(_TZ).strftime("%d/%m/%Y à %H:%M")} · {OWNER_NAME}</footer>
 </body>
 </html>"""
 
@@ -574,7 +583,7 @@ def generate_weekly_html(df: pd.DataFrame, week_start: date, logo_path: str) -> 
                   f"{DAYS_FR[week_end.weekday()]} {week_end.day} "
                   f"{MONTHS_FR[week_end.month]} {week_end.year}")
 
-    nav = '<nav><a href="index.html">Aujourd\'hui</a> | <a href="weekly.html">Cette semaine</a></nav>'
+    nav = _nav_html("weekly.html")
 
     return f"""<!DOCTYPE html>
 <html lang="fr">
@@ -633,7 +642,44 @@ def generate_weekly_html(df: pd.DataFrame, week_start: date, logo_path: str) -> 
 
   {repeat_html}
 </div>
-<footer>Généré le {datetime.now().strftime("%d/%m/%Y à %H:%M")} · {OWNER_NAME}</footer>
+<footer>Généré le {datetime.now(_TZ).strftime("%d/%m/%Y à %H:%M")} · {OWNER_NAME}</footer>
+</body>
+</html>"""
+
+
+# ── Upcoming weeks HTML ────────────────────────────────────────────────────────
+
+def generate_upcoming_html(df: pd.DataFrame, today: date, logo_path: str) -> str:
+    """Page showing the next 8 calendar weeks (starting from next Monday)."""
+    # Start from next Monday (or this coming Monday if today is Sunday)
+    days_until_monday = (7 - today.weekday()) % 7 or 7
+    first_week_start  = today + timedelta(days=days_until_monday)
+
+    body = ""
+    for i in range(8):
+        week_start = first_week_start + timedelta(weeks=i)
+        body += next_week_section(df, week_start, i + 1)
+
+    nav = _nav_html("upcoming.html")
+
+    return f"""<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>La Ferme de la Cour — Semaines prochaines</title>
+<style>{CSS}</style>
+</head>
+<body>
+<header>
+  <img src="logo.png" alt="La Ferme de la Cour">
+  <h1>La Ferme de la Cour</h1>
+  <div class="sub">Semaines prochaines</div>
+</header>
+{nav}
+<div class="container">{body}
+</div>
+<footer>Généré le {datetime.now(_TZ).strftime("%d/%m/%Y à %H:%M")} · {OWNER_NAME}</footer>
 </body>
 </html>"""
 
@@ -685,6 +731,13 @@ def run():
     with open(weekly_path, "w", encoding="utf-8") as fh:
         fh.write(weekly_html)
     log.info(f"Weekly HTML written → {weekly_path}")
+
+    # Upcoming weeks page
+    upcoming_html = generate_upcoming_html(df, today, logo_src)
+    upcoming_path = os.path.join(docs_dir, "upcoming.html")
+    with open(upcoming_path, "w", encoding="utf-8") as fh:
+        fh.write(upcoming_html)
+    log.info(f"Upcoming HTML written → {upcoming_path}")
 
     no_git = "--no-git" in sys.argv
     if no_git:
