@@ -186,8 +186,8 @@
 <div class="tabs">
   <button class="tab-btn" id="tab-btn-room"   onclick="switchTab('room')">🛏️ Chambre</button>
   <button class="tab-btn" id="tab-btn-meal"   onclick="switchTab('meal')">🍽️ Repas seul</button>
-  <button class="tab-btn" id="tab-btn-email"  onclick="switchTab('email')">✏️ Email</button>
   <button class="tab-btn" id="tab-btn-extras" onclick="switchTab('extras')">➕ Extras</button>
+  <button class="tab-btn" id="tab-btn-email"  onclick="switchTab('email')">✏️ Email</button>
 </div>
 
 <div class="container">
@@ -545,10 +545,13 @@
     </p>
     <form method="POST" action="/update-booking" novalidate>
       <div class="form-group">
-        <label for="e_reference">Référence de réservation <span class="required">*</span></label>
-        <input type="text" id="e_reference" name="reference"
-               placeholder="ex. U2604160349 ou M0026"
+        <label for="e_identifier">Référence, email ou nom du client <span class="required">*</span></label>
+        <input type="text" id="e_identifier" name="identifier"
+               placeholder="ex. U2604201084, M0026, client@email.com ou Dupont"
                autocorrect="off" autocapitalize="off" required>
+        <p style="font-size:.8rem;color:#888;margin-top:4px;">
+          Si plusieurs clients ont le même nom, utilisez la référence exacte.
+        </p>
       </div>
 
       <hr class="divider">
@@ -599,7 +602,7 @@
 <script>
   // ── Tab switching ──────────────────────────────────────────────────────
   function switchTab(tab) {
-    ['room', 'meal', 'email', 'extras'].forEach(function(t) {
+    ['room', 'meal', 'extras', 'email'].forEach(function(t) {
       document.getElementById('panel-' + t).classList.toggle('active', t === tab);
       document.getElementById('tab-btn-' + t).classList.toggle('active', t === tab);
     });
@@ -642,7 +645,7 @@
   (function () {
     const params = new URLSearchParams(window.location.search);
     const tab    = params.get('tab') || 'room';
-    switchTab(['room', 'meal', 'email', 'extras'].includes(tab) ? tab : 'room');
+    switchTab(['room', 'meal', 'extras', 'email'].includes(tab) ? tab : 'room');
     updateNights();
   })();
 </script>

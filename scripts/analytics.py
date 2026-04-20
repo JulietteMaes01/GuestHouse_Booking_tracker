@@ -608,6 +608,55 @@ def chart_weekly_goal(rows):
     return _fig_to_b64(fig)
 
 
+def chart_monthly_revenue_detail(rows):
+    """Net revenue for the current month and the 4 previous months — clearly labelled bar chart."""
+    MONTH_FR = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
+    today = date.today()
+
+    # Build list of (year, month) for last 5 months ending with current month
+    months = []
+    for delta in range(4, -1, -1):
+        m = today.month - delta
+        y = today.year
+        while m <= 0:
+            m += 12
+            y -= 1
+        months.append((y, m))
+
+    rev = defaultdict(float)
+    for r in rows:
+        key = (r["arrival"].year, r["arrival"].month)
+        rev[key] += r["net_amount"]
+
+    # Need at least 2 months with data to be meaningful
+    data_months = [(y, m) for y, m in months if rev.get((y, m), 0) > 0]
+    if len(data_months) < 2:
+        return None
+
+    labels = []
+    vals   = []
+    colors = []
+    for y, m in months:
+        short_y = str(y)[2:]
+        is_current = (y == today.year and m == today.month)
+        labels.append(f"{MONTH_FR[m-1]} {short_y}" + (" ●" if is_current else ""))
+        vals.append(rev.get((y, m), 0))
+        colors.append(BROWN if is_current else LIGHT)
+
+    fig, ax = plt.subplots(figsize=(10, 4))
+    bars = ax.bar(labels, vals, color=colors, width=0.55, zorder=3)
+    # Label every bar with the euro amount
+    ax.bar_label(bars, padding=5, fontsize=11, fontweight="bold",
+                 labels=[f"{v:,.0f} €" if v else "" for v in vals])
+    ax.set_title("Revenus nets — 5 derniers mois")
+    ax.set_ylabel("€ net")
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:,.0f} €"))
+    ax.grid(axis="y", color=LIGHT, zorder=0)
+    ax.set_ylim(0, max(vals) * 1.22 if max(vals) else 1)
+    fig.tight_layout()
+    return _fig_to_b64(fig)
+
+
 def chart_table_dhotes(rows):
     """How many bookings include Table d'hôtes or Breakfast, by month."""
     MONTH_FR = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
@@ -701,6 +750,12 @@ def chart_revenue_rooms_vs_food(rows):
 def compute_kpis(rows):
     total     = len(rows)
     confirmed = sum(1 for r in rows if r["status"] == "Confirmed")
+    this_month = date.today().month
+    this_month_year = date.today().year
+    month_revenue = sum(
+        r["net_amount"] for r in rows
+        if r["arrival"].month == this_month and r["arrival"].year == this_month_year
+    )
     revenue   = sum(r["net_amount"] for r in rows)
     avg_stay  = np.mean([r["nights"] for r in rows if r["nights"] > 0])
     repeat_rt = sum(1 for r in rows if r["repeat"]) / total * 100 if total else 0
@@ -725,8 +780,11 @@ def compute_kpis(rows):
     massage_count = sum(1 for r in rows if r["has_massage"])
     cover_vals = [r["guest_count"] for r in rows if r["guest_count"] > 0]
     avg_covers = f"{np.mean(cover_vals):.1f}" if cover_vals else "—"
+    MONTH_FR_LONG = ["Janvier","Février","Mars","Avril","Mai","Juin",
+                     "Juillet","Août","Septembre","Octobre","Novembre","Décembre"]
     return [
         ("🏠", f"{total}", "Réservations totales"),
+        ("💶", f"{month_revenue:,.0f} €", f"Ce mois ({MONTH_FR_LONG[this_month-1]})"),
         ("💶", f"{revenue:,.0f} €", "Revenus nets (après commissions)"),
         ("🌙", f"{avg_stay:.1f} nuits", "Séjour moyen"),
         ("⭐", f"{repeat_rt:.0f}%", "Clients fidèles"),
@@ -833,6 +891,11 @@ def main():
 
     c = chart_monthly(rows)
     charts.append((c, "Réservations par mois", "Réservations confirmées et modifiées uniquement", True))
+
+    c = chart_monthly_revenue_detail(rows)
+    if c:
+        charts.append((c, "Revenus nets — 5 derniers mois",
+                       "Mois en cours mis en évidence. Revenus nets après commissions.", True))
 
     c = chart_revenue_month(rows)
     charts.append((c, "Revenus nets par mois", "Booking.com : -15% commission. Mettre à jour dans config.py quand le taux exact est confirmé.", True))
