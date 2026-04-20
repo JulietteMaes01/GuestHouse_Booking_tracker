@@ -27,14 +27,27 @@
   .chart-card img { width: 100%; height: auto; border-radius: 6px; }
   .note { font-size: 0.8rem; color: #9E9E9E; margin-top: 10px; font-style: italic; }
   footer { text-align: center; padding: 20px; font-size: 0.8rem; color: #A8B8AC; }
+  nav   { display: flex; justify-content: center; background: white;
+           border-bottom: 2px solid #A8B8AC; margin-bottom: 0; }
+  nav a { color: #7A8C7E; text-decoration: none; padding: 12px 20px;
+           font-weight: 600; font-size: .88rem; border-bottom: 3px solid transparent;
+           margin-bottom: -2px; transition: color .15s; }
+  nav a:hover  { color: #4A5D4E; }
+  nav a.active { color: #4A5D4E; border-bottom-color: #4A5D4E; }
   @media (max-width: 600px) { .grid { grid-template-columns: 1fr; padding: 16px; } }
 </style>
 </head>
 <body>
 <header>
   <h1>🏡 La Ferme de la Cour — Analytiques</h1>
-  <p>Mis à jour le 20/04/2026 17:06</p>
+  <p>Mis à jour le 20/04/2026 17:17</p>
 </header>
+<nav>
+  <a href="index.html">📅 Aujourd'hui</a>
+  <a href="weekly.html">📆 Cette semaine</a>
+  <a href="upcoming.html">🗓️ Semaines prochaines</a>
+  <a href="analytics.html" class="active">📊 Analytiques</a>
+</nav>
 <section class="kpis">
         <div class="kpi">
             <span class="kpi-icon">🏠</span>

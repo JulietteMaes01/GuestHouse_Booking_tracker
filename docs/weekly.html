@@ -66,10 +66,13 @@ tr:hover     { background: #F1EFE7; }
                border-radius: 4px; vertical-align: middle; margin-right: 6px; }
 footer       { text-align: center; color: #A8B8AC; font-size: .78rem;
                margin: 32px 0 16px; }
-nav          { text-align: center; margin: 16px 0; }
-nav a        { color: var(--primary); text-decoration: none; margin: 0 10px;
-               font-weight: 600; font-size: .9rem; }
-nav a:hover  { text-decoration: underline; }
+nav          { display: flex; justify-content: center; background: var(--card-bg);
+               border-bottom: 2px solid var(--accent); margin-bottom: 0; }
+nav a        { color: var(--secondary); text-decoration: none; padding: 12px 20px;
+               font-weight: 600; font-size: .88rem; border-bottom: 3px solid transparent;
+               margin-bottom: -2px; transition: color .15s; }
+nav a:hover  { color: var(--primary); }
+nav a.active { color: var(--primary); border-bottom-color: var(--primary); }
 @media (max-width: 520px) {
     header h1   { font-size: 1.2rem; }
     .info-grid  { grid-template-columns: 1fr; }
@@ -82,7 +85,7 @@ nav a:hover  { text-decoration: underline; }
   <h1>La Ferme de la Cour</h1>
   <div class="sub">Semaine du Lundi 20 Avril au Dimanche 26 Avril 2026</div>
 </header>
-<nav><a href="index.html">Aujourd'hui</a> | <a href="weekly.html">Cette semaine</a> | <a href="analytics.html">📊 Analytiques</a></nav>
+<nav><a href="index.html">📅 Aujourd'hui</a><a href="weekly.html" class="active">📆 Cette semaine</a><a href="upcoming.html">🗓️ Semaines prochaines</a><a href="analytics.html">📊 Analytiques</a></nav>
 <div class="container">
   <div class="stat-grid">
     <div class="stat-card">
@@ -125,6 +128,6 @@ nav a:hover  { text-decoration: underline; }
 
   
 </div>
-<footer>Généré le 20/04/2026 à 17:06 · Juliette Maes</footer>
+<footer>Généré le 20/04/2026 à 17:17 · Juliette Maes</footer>
 </body>
 </html>
