@@ -713,10 +713,11 @@ def compute_kpis(rows):
                      and r["arrival"].isocalendar()[1] == this_week)
     week_kpi   = f"{week_count}/{goal}" if goal else str(week_count)
     week_icon  = "✅" if goal and week_count >= goal else "🎯"
-    td_count   = sum(1 for r in rows if r["table_dhotes"])
-    bf_count   = sum(1 for r in rows if r["breakfast"])
-    cover_vals = [r["guest_count"] for r in rows if r["guest_count"] > 0]
-    avg_covers = f"{np.mean(cover_vals):.1f}" if cover_vals else "—"
+    td_count      = sum(1 for r in rows if r["table_dhotes"])
+    bf_count      = sum(1 for r in rows if r["breakfast"])
+    cover_vals    = [r["guest_count"] for r in rows if r["guest_count"] > 0]
+    avg_covers    = f"{np.mean(cover_vals):.1f}" if cover_vals else "—"
+    umfulana_count = sum(1 for r in rows if r["source"] == "Réservation Umfulana")
     return [
         ("🏠", f"{total}", "Réservations totales"),
         ("💶", f"{revenue:,.0f} €", "Revenus nets (après commissions)"),
@@ -728,6 +729,7 @@ def compute_kpis(rows):
         ("🍽️", f"{td_count}", "Table d'hôtes"),
         ("🥐", f"{bf_count}", "Petit-déjeuner"),
         ("👥", avg_covers, "Couverts en moyenne"),
+        ("🏕️", f"{umfulana_count}", "Réservations Umfulana (50% restant)"),
     ]
 
 # ── HTML builder ──────────────────────────────────────────────────────────────
@@ -791,10 +793,11 @@ def build_html(kpis, charts):
   .note {{ font-size: 0.8rem; color: #9E9E9E; margin-top: 10px; font-style: italic; }}
   footer {{ text-align: center; padding: 20px; font-size: 0.8rem; color: {GOLD}; }}
   nav   {{ display: flex; justify-content: center; background: white;
-           border-bottom: 2px solid {GOLD}; margin-bottom: 0; }}
-  nav a {{ color: {SECONDARY}; text-decoration: none; padding: 12px 20px;
-           font-weight: 600; font-size: .88rem; border-bottom: 3px solid transparent;
-           margin-bottom: -2px; transition: color .15s; }}
+           border-bottom: 2px solid {GOLD}; margin-bottom: 0;
+           overflow-x: auto; -webkit-overflow-scrolling: touch; }}
+  nav a {{ color: {SECONDARY}; text-decoration: none; padding: 12px 16px;
+           font-weight: 600; font-size: .85rem; border-bottom: 3px solid transparent;
+           margin-bottom: -2px; transition: color .15s; white-space: nowrap; flex-shrink: 0; }}
   nav a:hover  {{ color: {BROWN}; }}
   nav a.active {{ color: {BROWN}; border-bottom-color: {BROWN}; }}
   @media (max-width: 600px) {{ .grid {{ grid-template-columns: 1fr; padding: 16px; }} }}
@@ -840,11 +843,6 @@ def main():
 
     c = chart_revenue_month(rows)
     charts.append((c, "Revenus nets par mois", "Booking.com : -15% commission. Mettre à jour dans config.py quand le taux exact est confirmé.", True))
-
-    c = chart_revenue_rooms_vs_food(rows)
-    if c:
-        charts.append((c, "Revenus bruts — Hébergement vs Restauration",
-                       "Hébergement = réservations avec chambre · Restauration = repas seuls (sans chambre)", True))
 
     c = chart_yoy_weekly(rows)
     if c:

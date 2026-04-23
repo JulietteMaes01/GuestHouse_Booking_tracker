@@ -20,7 +20,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from auth import get_worksheet
 from config import ROOMS, NATIONALITIES, COLUMNS
 
-MANUAL_SOURCES = ["Email/phone", "Social Deal", "Expedia"]
+MANUAL_SOURCES = ["Email/phone", "Social Deal", "Réservation Umfulana"]
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(message)s")
 log = logging.getLogger(__name__)
@@ -232,6 +232,38 @@ def booking_form():
             "breakfast":         breakfast,
             "guest_count":       guest_count,
         }
+
+        # ── Double-booking check (room bookings only) ────────────────────────
+        if form_type == "room" and rooms_selected and arrival_date and departure_date:
+            conflicts = []
+            for rec in records:
+                if str(rec.get("status", "")).lower() == "cancelled":
+                    continue
+                try:
+                    rec_arr = datetime.strptime(rec["arrival_date"],   "%d/%m/%Y").date()
+                    rec_dep = datetime.strptime(rec["departure_date"], "%d/%m/%Y").date()
+                except (ValueError, KeyError):
+                    continue
+                # Overlap: [arr, dep) intervals intersect when arr < other_dep AND dep > other_arr
+                if rec_arr < departure_date and rec_dep > arrival_date:
+                    booked_rooms = [str(rec.get(f"room{i}", "") or "") for i in range(1, 5)]
+                    for room in rooms_selected:
+                        if room in booked_rooms:
+                            conflicts.append(
+                                f"{room} (déjà occupée par {rec.get('guest_name', '?')} "
+                                f"{rec['arrival_date']}→{rec['departure_date']})"
+                            )
+            if conflicts:
+                for c in conflicts:
+                    flash(f"⛔ Conflit de réservation : {c}", "error")
+                return render_template(
+                    "booking_form.html",
+                    rooms=ROOMS,
+                    nationalities=NATIONALITIES,
+                    manual_sources=MANUAL_SOURCES,
+                    active_tab=active_tab,
+                    form_data=request.form,
+                )
 
         # ── Repeat-guest detection ────────────────────────────────────────────
         try:

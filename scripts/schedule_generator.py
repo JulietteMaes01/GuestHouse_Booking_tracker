@@ -23,7 +23,9 @@ _TZ = ZoneInfo("Europe/Brussels")
 import pandas as pd
 
 from auth import get_worksheet
-from config import ROOMS, GITHUB_REPO_PATH, DOCS_FOLDER, OWNER_NAME, PREPAID_SOURCES, SOURCE_ALIASES
+from config import (ROOMS, GITHUB_REPO_PATH, DOCS_FOLDER, OWNER_NAME,
+                    PREPAID_SOURCES, SPLIT_PAYMENT_SOURCES, BREAKFAST_AUTO_SOURCES,
+                    SOURCE_ALIASES)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(message)s")
 log = logging.getLogger(__name__)
@@ -39,6 +41,15 @@ FLAG = {
     "espagne": "🇪🇸", "spain": "🇪🇸",
     "italie": "🇮🇹", "italy": "🇮🇹",
     "suisse": "🇨🇭", "switzerland": "🇨🇭",
+    "autriche": "🇦🇹", "austria": "🇦🇹",
+    "portugal": "🇵🇹",
+    "irlande": "🇮🇪", "ireland": "🇮🇪",
+    "danemark": "🇩🇰", "denmark": "🇩🇰",
+    "suède": "🇸🇪", "sweden": "🇸🇪",
+    "norvège": "🇳🇴", "norway": "🇳🇴",
+    "pologne": "🇵🇱", "poland": "🇵🇱",
+    "hongrie": "🇭🇺", "hungary": "🇭🇺",
+    "états-unis": "🇺🇸", "united states": "🇺🇸", "usa": "🇺🇸",
 }
 
 DAYS_FR   = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
@@ -108,15 +119,17 @@ tr:hover     { background: #F1EFE7; }
 footer       { text-align: center; color: #A8B8AC; font-size: .78rem;
                margin: 32px 0 16px; }
 nav          { display: flex; justify-content: center; background: var(--card-bg);
-               border-bottom: 2px solid var(--accent); margin-bottom: 0; }
-nav a        { color: var(--secondary); text-decoration: none; padding: 12px 20px;
-               font-weight: 600; font-size: .88rem; border-bottom: 3px solid transparent;
-               margin-bottom: -2px; transition: color .15s; }
+               border-bottom: 2px solid var(--accent); margin-bottom: 0;
+               overflow-x: auto; -webkit-overflow-scrolling: touch; }
+nav a        { color: var(--secondary); text-decoration: none; padding: 12px 16px;
+               font-weight: 600; font-size: .85rem; border-bottom: 3px solid transparent;
+               margin-bottom: -2px; transition: color .15s; white-space: nowrap; flex-shrink: 0; }
 nav a:hover  { color: var(--primary); }
 nav a.active { color: var(--primary); border-bottom-color: var(--primary); }
 @media (max-width: 520px) {
     header h1   { font-size: 1.2rem; }
     .info-grid  { grid-template-columns: 1fr; }
+    nav a       { padding: 10px 11px; font-size: .78rem; }
 }
 """
 
@@ -224,9 +237,9 @@ def booking_card(row, booking_type: str) -> str:
     }
 
     table_dhotes = str(row.get("table_dhotes", "")).lower() in ("true", "1", "yes", "oui")
-    # Breakfast: explicit flag OR auto-included for Booking.com / Website
+    # Breakfast: explicit flag OR auto-included for certain sources
     breakfast    = (str(row.get("breakfast", "")).lower() in ("true", "1", "yes", "oui")
-                    or source in {"Booking.com", "Website"})
+                    or source in BREAKFAST_AUTO_SOURCES)
     try:
         guest_count = int(row.get("guest_count", "") or 0)
     except (ValueError, TypeError):
@@ -238,6 +251,8 @@ def booking_card(row, booking_type: str) -> str:
 
     if source in PREPAID_SOURCES:
         payment_tag = '<span class="repeat-tag" style="background:#E8F5E9;color:#2E7D32;">✅ Payé</span>'
+    elif source in SPLIT_PAYMENT_SOURCES:
+        payment_tag = '<span class="repeat-tag" style="background:#FFF8E1;color:#F57F17;">💳 50% restant</span>'
     elif source:
         payment_tag = '<span class="repeat-tag" style="background:#FFF3E0;color:#E65100;">💳 À régler</span>'
     else:
@@ -336,8 +351,8 @@ def meal_prep_summary(df_active: pd.DataFrame, target_date: date) -> str:
     bf_entries = []
     for _, r in df_active.iterrows():
         if str(r.get("breakfast", "")).lower() not in ("true", "1", "yes", "oui"):
-            # Also auto-include Booking.com / Website if no explicit flag
-            if str(r.get("booking_source", "")) not in {"Booking.com", "Website"}:
+            # Also auto-include certain sources if no explicit flag
+            if str(r.get("booking_source", "")) not in BREAKFAST_AUTO_SOURCES:
                 continue
         is_meal_only = not any(r.get(f"room{i}") for i in range(1, 5))
         arr_date = r["arrival_date"]
@@ -542,7 +557,7 @@ def generate_weekly_html(df: pd.DataFrame, week_start: date, logo_path: str) -> 
     _bf_flag = (arrivals_week["breakfast"].astype(str).str.lower().isin(["true", "1", "yes", "oui"])
                 if "breakfast" in arrivals_week.columns
                 else pd.Series(False, index=arrivals_week.index))
-    _bf_auto = arrivals_week["booking_source"].isin({"Booking.com", "Website"})
+    _bf_auto = arrivals_week["booking_source"].isin(BREAKFAST_AUTO_SOURCES)
     bf_week  = arrivals_week[_bf_flag | _bf_auto]
 
     # Occupancy per day
