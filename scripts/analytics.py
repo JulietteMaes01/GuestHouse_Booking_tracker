@@ -748,8 +748,10 @@ def chart_revenue_rooms_vs_food(rows):
 
 # ── KPI cards ─────────────────────────────────────────────────────────────────
 def compute_kpis(rows):
-    total     = len(rows)
-    confirmed = sum(1 for r in rows if r["status"] == "Confirmed")
+    # Exclude Email/phone (manual) bookings from total — they skew platform stats
+    EXCLUDED_SOURCES = {"Email/phone", "Manual"}
+    platform_rows = [r for r in rows if r["source"] not in EXCLUDED_SOURCES]
+    total     = len(platform_rows)
     this_month = date.today().month
     this_month_year = date.today().year
     month_revenue = sum(
@@ -758,7 +760,7 @@ def compute_kpis(rows):
     )
     revenue   = sum(r["net_amount"] for r in rows)
     avg_stay  = np.mean([r["nights"] for r in rows if r["nights"] > 0])
-    repeat_rt = sum(1 for r in rows if r["repeat"]) / total * 100 if total else 0
+    repeat_rt = sum(1 for r in rows if r["repeat"]) / len(rows) * 100 if rows else 0
     room_counts = Counter(rm for r in rows for rm in r["rooms"])
     max_count   = room_counts.most_common(1)[0][1]
     top_room    = " & ".join(rm.split()[0] for rm, cnt in room_counts.items() if cnt == max_count)
@@ -776,15 +778,14 @@ def compute_kpis(rows):
     week_kpi   = f"{week_count}/{goal}" if goal else str(week_count)
     week_icon  = "✅" if goal and week_count >= goal else "🎯"
     td_count      = sum(1 for r in rows if r["table_dhotes"])
-    bf_count       = sum(1 for r in rows if r["breakfast_explicit"])   # explicit only
-    massage_count  = sum(1 for r in rows if r["has_massage"])
-    cover_vals     = [r["guest_count"] for r in rows if r["guest_count"] > 0]
-    avg_covers     = f"{np.mean(cover_vals):.1f}" if cover_vals else "—"
-    umfulana_count = sum(1 for r in rows if r["source"] == "Réservation Umfulana")
-    MONTH_FR_LONG  = ["Janvier","Février","Mars","Avril","Mai","Juin",
-                      "Juillet","Août","Septembre","Octobre","Novembre","Décembre"]
+    bf_count      = sum(1 for r in rows if r["breakfast_explicit"])   # explicit only
+    massage_count = sum(1 for r in rows if r["has_massage"])
+    cover_vals    = [r["guest_count"] for r in rows if r["guest_count"] > 0]
+    avg_covers    = f"{np.mean(cover_vals):.1f}" if cover_vals else "—"
+    MONTH_FR_LONG = ["Janvier","Février","Mars","Avril","Mai","Juin",
+                     "Juillet","Août","Septembre","Octobre","Novembre","Décembre"]
     return [
-        ("🏠", f"{total}", "Réservations totales"),
+        ("🏠", f"{total}", "Réservations plateformes (hors email/tél)"),
         ("💶", f"{month_revenue:,.0f} €", f"Ce mois ({MONTH_FR_LONG[this_month-1]})"),
         ("💶", f"{revenue:,.0f} €", "Revenus nets (après commissions)"),
         ("🌙", f"{avg_stay:.1f} nuits", "Séjour moyen"),
@@ -796,7 +797,6 @@ def compute_kpis(rows):
         ("🥐", f"{bf_count}", "Petit-déjeuner (réservé explicitement)"),
         ("👥", avg_covers, "Couverts en moyenne"),
         ("💆", f"{massage_count}", "Massages réservés"),
-        ("🏕️", f"{umfulana_count}", "Réservations Umfulana (50% restant)"),
     ]
 
 # ── HTML builder ──────────────────────────────────────────────────────────────
