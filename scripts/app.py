@@ -20,7 +20,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from auth import get_worksheet
 from config import ROOMS, NATIONALITIES, COLUMNS, MASSAGE_OPTIONS
 
-MANUAL_SOURCES = ["Email/phone", "Social Deal", "Réservation Umfulana"]
+MANUAL_SOURCES = ["Email/phone", "Social Deal", "Umfulana"]
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(message)s")
 log = logging.getLogger(__name__)
