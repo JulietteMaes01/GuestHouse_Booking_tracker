@@ -82,6 +82,8 @@ PHONE_CODE_TO_NATIONALITY = {
     "48":  "Pologne",
     "49":  "Allemagne",
     "351": "Portugal",
+    # North America
+    "1":   "États-Unis",
 }
 
 # ── Normalize English → French (for fixing existing sheet data) ────────────────
@@ -119,16 +121,23 @@ SOURCE_ALIASES = {
 # Net amount = gross amount × (1 - commission rate)
 # Update BOOKING_COM_COMMISSION once you have the exact rate from your contract.
 COMMISSIONS = {
-    "Booking.com": 0.15,   # 15% — update when confirmed
-    "Website":     0.00,
-    "Expedia":     0.15,   # update when confirmed
-    "Social Deal": 0.00,   # update when confirmed
-    "Email/phone": 0.00,
-    "Manual":      0.00,   # legacy label kept for existing sheet rows
+    "Booking.com":          0.15,   # 15% — update when confirmed
+    "Website":              0.00,
+    "Expedia":              0.15,   # update when confirmed
+    "Social Deal":          0.00,   # update when confirmed
+    "Réservation Umfulana": 0.00,   # update when confirmed
+    "Email/phone":          0.00,
+    "Manual":               0.00,   # legacy label kept for existing sheet rows
 }
 
-# Sources where guests pay in advance (show ✅ Payé on schedule)
+# Sources where guests pay fully in advance (show ✅ Payé on schedule)
 PREPAID_SOURCES = {"Booking.com", "Social Deal", "Expedia"}
+
+# Sources where guests pay 50% in advance, 50% on arrival (show 💳 50% restant)
+SPLIT_PAYMENT_SOURCES = {"Réservation Umfulana"}
+
+# Sources that always include breakfast automatically
+BREAKFAST_AUTO_SOURCES = {"Booking.com", "Website", "Réservation Umfulana"}
 
 # ── Weekly booking goals (number of confirmed bookings per week) ───────────────
 BOOKING_GOALS = {
