@@ -114,7 +114,7 @@ COMMISSIONS = {
     "Website":              0.00,
     "Expedia":              0.15,   # update when confirmed
     "Social Deal":          0.00,   # update when confirmed
-    "Réservation Umfulana": 0.00,   # update when confirmed
+    "Umfulana": 0.00,   # update when confirmed
     "Email/phone":          0.00,
     "Manual":               0.00,   # legacy label kept for existing sheet rows
 }
@@ -123,10 +123,10 @@ COMMISSIONS = {
 PREPAID_SOURCES = {"Booking.com", "Social Deal", "Expedia"}
 
 # Sources where guests pay 50% in advance, 50% on arrival (show 💳 50% restant)
-SPLIT_PAYMENT_SOURCES = {"Réservation Umfulana"}
+SPLIT_PAYMENT_SOURCES = {"Umfulana"}
 
 # Sources that always include breakfast automatically
-BREAKFAST_AUTO_SOURCES = {"Booking.com", "Website", "Réservation Umfulana"}
+BREAKFAST_AUTO_SOURCES = {"Booking.com", "Website", "Umfulana"}
 
 # ── Weekly booking goals (number of confirmed bookings per week) ───────────────
 BOOKING_GOALS = {

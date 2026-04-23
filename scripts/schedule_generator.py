@@ -252,7 +252,12 @@ def booking_card(row, booking_type: str) -> str:
     if source in PREPAID_SOURCES:
         payment_tag = '<span class="repeat-tag" style="background:#E8F5E9;color:#2E7D32;">✅ Payé</span>'
     elif source in SPLIT_PAYMENT_SOURCES:
-        payment_tag = '<span class="repeat-tag" style="background:#FFF8E1;color:#F57F17;">💳 50% restant</span>'
+        try:
+            half = float(str(amount).replace(",", ".")) / 2
+            half_str = f" — {half:,.0f} €" if half > 0 else ""
+        except (ValueError, TypeError):
+            half_str = ""
+        payment_tag = f'<span class="repeat-tag" style="background:#FFF8E1;color:#F57F17;">💳 50% restant{half_str}</span>'
     elif source:
         payment_tag = '<span class="repeat-tag" style="background:#FFF3E0;color:#E65100;">💳 À régler</span>'
     else:
