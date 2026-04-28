@@ -307,7 +307,9 @@ def detect_repeat_guest(new_row: dict, existing_records: list) -> tuple:
     """
     new_email = str(new_row.get("email") or "").lower()
     new_phone = _normalize_phone(new_row.get("phone") or "")
-    use_email = bool(new_email) and "@guest.booking.com" not in new_email
+    use_email = (bool(new_email)
+                 and "@guest.booking.com" not in new_email
+                 and "@m.expediapartnercentral.com" not in new_email)
 
     matches   = 0
     seen_refs = set()
@@ -323,7 +325,10 @@ def detect_repeat_guest(new_row: dict, existing_records: list) -> tuple:
 
         if use_email and existing_email and existing_email == new_email:
             matches += 1
-        elif new_phone and existing_phone and existing_phone == new_phone:
+        elif (new_phone and existing_phone
+              and existing_phone == new_phone
+              and len(set(new_phone)) > 1
+              and len(set(existing_phone)) > 1):
             matches += 1
 
     return matches > 0, matches + 1

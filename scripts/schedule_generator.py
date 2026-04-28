@@ -617,7 +617,7 @@ def generate_weekly_html(df: pd.DataFrame, week_start: date, logo_path: str) -> 
         cells = ""
         for d in week_days:
             dt = pd.Timestamp(d)
-            day_bk = df[(df["arrival_date"] <= dt) & (df["departure_date"] >= dt)]
+            day_bk = df[(df["arrival_date"] <= dt) & (df["departure_date"] > dt)]
             guest_name = None
             for _, r in day_bk.iterrows():
                 booked = [str(r.get(f"room{i}", "") or "").strip() for i in range(1, 5)]
