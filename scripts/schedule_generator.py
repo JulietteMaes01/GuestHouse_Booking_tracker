@@ -485,11 +485,18 @@ def generate_daily_html(df: pd.DataFrame, target_date: date, logo_path: str) -> 
         section(staying,    "staying",   f"🏠 En séjour ({len(staying)})")
     )
 
+    # Rotation banner — top of page, highly visible
+    rotation_banner = ""
     if turnover_rooms:
         rooms_list = ", ".join(sorted(turnover_rooms))
-        sections += f'<div class="notes-box" style="margin-top:16px">🔄 Rotation de chambre aujourd\'hui : <strong>{rooms_list}</strong></div>'
+        rotation_banner = (
+            '<div style="background:#FFF3CD;border:2px solid #FFC107;border-radius:10px;'
+            'padding:14px 18px;margin-bottom:18px;font-size:1rem;color:#7A4A00;">'
+            f'🔄 <strong>Rotation aujourd\'hui :</strong> {rooms_list}'
+            '</div>'
+        )
 
-    today_body = meal_summary + (sections if sections else '<div class="empty-msg">🌿 Pas de réservation aujourd\'hui — repos bien mérité !</div>')
+    today_body = rotation_banner + meal_summary + (sections if sections else '<div class="empty-msg">🌿 Pas de réservation aujourd\'hui — repos bien mérité !</div>')
 
     # ── Next 6 days flat ──────────────────────────────────────────────────────
     upcoming_body = ""
@@ -565,19 +572,64 @@ def generate_weekly_html(df: pd.DataFrame, week_start: date, logo_path: str) -> 
     _bf_auto = arrivals_week["booking_source"].isin(BREAKFAST_AUTO_SOURCES)
     bf_week  = arrivals_week[_bf_flag | _bf_auto]
 
-    # Occupancy per day
+    # Occupancy per day — count rooms occupied, not bookings
     occ_rows = ""
     for d in week_days:
         dt = pd.Timestamp(d)
-        count = len(df[
-            (df["arrival_date"]   <= dt) &
-            (df["departure_date"] >= dt)
-        ])
+        day_bookings = df[(df["arrival_date"] <= dt) & (df["departure_date"] >= dt)]
+        rooms_occupied = set()
+        for _, r in day_bookings.iterrows():
+            for col in ("room1", "room2", "room3", "room4"):
+                v = str(r.get(col, "") or "").strip()
+                if v:
+                    rooms_occupied.add(v)
+        count  = len(rooms_occupied)
         total  = len(ROOMS)
         pct    = int(count / total * 100) if total else 0
         bar    = f'<span class="occ-bar" style="width:{pct}px"></span>'
         occ_rows += (f"<tr><td>{DAYS_FR[d.weekday()]} {d.day}/{d.month}</td>"
                      f"<td>{bar}{pct}%</td><td>{count}/{total}</td></tr>")
+
+    # Room availability grid — rows=rooms, cols=7 days
+    day_headers = "".join(
+        f'<th style="text-align:center;font-size:.75rem;padding:6px 8px;">'
+        f'{DAYS_FR[d.weekday()][:3]}<br>{d.day}/{d.month}</th>'
+        for d in week_days
+    )
+    grid_rows = ""
+    for room in ROOMS:
+        ident = ROOM_IDENTITY.get(room, {"emoji": "🛏", "bg": "#F1EFE7", "color": "#4A5D4E"})
+        short = room.replace(" de la Cour", "")
+        name_cell = (f'<td style="font-weight:600;font-size:.8rem;white-space:nowrap;'
+                     f'color:{ident["color"]};padding:6px 10px;">'
+                     f'{ident["emoji"]} {short}</td>')
+        cells = ""
+        for d in week_days:
+            dt = pd.Timestamp(d)
+            day_bk = df[(df["arrival_date"] <= dt) & (df["departure_date"] >= dt)]
+            guest_name = None
+            for _, r in day_bk.iterrows():
+                booked = [str(r.get(f"room{i}", "") or "").strip() for i in range(1, 5)]
+                if room in booked:
+                    guest_name = str(r.get("guest_name", "") or "?").split()[0]
+                    break
+            if guest_name:
+                cells += (f'<td style="background:{ident["bg"]};color:{ident["color"]};'
+                          f'text-align:center;font-size:.72rem;padding:5px 3px;'
+                          f'font-weight:600">{guest_name}</td>')
+            else:
+                cells += ('<td style="background:#EBF5EC;color:#2E7D32;text-align:center;'
+                          'font-size:.85rem;padding:5px 3px;">✓</td>')
+        grid_rows += f"<tr>{name_cell}{cells}</tr>"
+
+    room_grid_html = f"""
+<div class="section-title">🛏️ Disponibilités des chambres</div>
+<div style="overflow-x:auto">
+<table style="border-collapse:collapse;width:100%;font-size:.82rem">
+  <thead><tr><th style="text-align:left;padding:6px 10px">Chambre</th>{day_headers}</tr></thead>
+  <tbody>{grid_rows}</tbody>
+</table>
+</div>"""
 
     # Source breakdown for arrivals this week
     source_counts = arrivals_week["booking_source"].value_counts()
@@ -653,6 +705,8 @@ def generate_weekly_html(df: pd.DataFrame, week_start: date, logo_path: str) -> 
     <thead><tr><th>Jour</th><th>Occupation</th><th>Chambres</th></tr></thead>
     <tbody>{occ_rows}</tbody>
   </table>
+
+  {room_grid_html}
 
   <div class="section-title">📊 Réservations par Source</div>
   <table>
