@@ -367,6 +367,10 @@ def chart_yoy_weekly(rows):
         cumul = np.cumsum([weekly[w] for w in xs])
         ax.plot(xs, cumul, marker="o", markersize=4, color=palette[i % len(palette)],
                 linewidth=2.2, label=str(yr))
+    # Vertical line for current week
+    current_week = date.today().isocalendar()[1]
+    ax.axvline(current_week, color=TEXT_COLOR, linestyle="--", linewidth=1.5,
+               alpha=0.6, zorder=5, label=f"Semaine actuelle (S{current_week})")
     ax.set_title("Réservations cumulées par semaine (année vs année)")
     ax.set_xlabel("Semaine de l'année")
     ax.set_ylabel("Réservations cumulées")
