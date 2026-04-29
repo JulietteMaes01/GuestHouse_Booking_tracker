@@ -261,18 +261,18 @@ def chart_source(rows):
     labels = list(counts.keys())
     vals   = list(counts.values())
     colors = [SOURCE_COLORS.get(l, LIGHT) for l in labels]
-    fig, ax = plt.subplots(figsize=(5.5, 5))
+    fig, ax = plt.subplots(figsize=(8, 7))
     wedges, texts, autotexts = ax.pie(
         vals, labels=None, colors=colors, autopct="%1.0f%%",
         startangle=140, wedgeprops=dict(linewidth=2, edgecolor="white"),
         pctdistance=0.78)
     for at in autotexts:
-        at.set_color("white"); at.set_fontweight("bold"); at.set_fontsize(12)
+        at.set_color("white"); at.set_fontweight("bold"); at.set_fontsize(14)
     legend = [mpatches.Patch(color=c, label=f"{l}  ({v})")
               for l, v, c in zip(labels, vals, colors)]
-    ax.legend(handles=legend, loc="lower center", bbox_to_anchor=(0.5, -0.12),
-              ncol=len(labels), frameon=False, fontsize=11)
-    ax.set_title("Canal de réservation")
+    ax.legend(handles=legend, loc="lower center", bbox_to_anchor=(0.5, -0.10),
+              ncol=len(labels), frameon=False, fontsize=13)
+    ax.set_title("Canal de réservation", fontsize=15)
     return _fig_to_b64(fig)
 
 def chart_revenue_month(rows):

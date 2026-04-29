@@ -615,6 +615,7 @@ def generate_weekly_html(df: pd.DataFrame, week_start: date, logo_path: str) -> 
                      f'color:{ident["color"]};padding:6px 10px;">'
                      f'{ident["emoji"]} {short}</td>')
         cells = ""
+        prev_guest = None
         for d in week_days:
             dt = pd.Timestamp(d)
             day_bk = df[(df["arrival_date"] <= dt) & (df["departure_date"] > dt)]
@@ -624,13 +625,17 @@ def generate_weekly_html(df: pd.DataFrame, week_start: date, logo_path: str) -> 
                 if room in booked:
                     guest_name = str(r.get("guest_name", "") or "?").split()[0]
                     break
+            # Left border when a new guest starts (arrival or guest switch)
+            new_arrival = guest_name is not None and guest_name != prev_guest
+            border = "border-left:3px solid #8B6F47;" if new_arrival else ""
             if guest_name:
                 cells += (f'<td style="background:{ident["bg"]};color:{ident["color"]};'
                           f'text-align:center;font-size:.72rem;padding:5px 3px;'
-                          f'font-weight:600">{guest_name}</td>')
+                          f'font-weight:600;{border}">{guest_name}</td>')
             else:
-                cells += ('<td style="background:#EBF5EC;color:#2E7D32;text-align:center;'
-                          'font-size:.85rem;padding:5px 3px;">✓</td>')
+                cells += (f'<td style="background:#EBF5EC;color:#2E7D32;text-align:center;'
+                          f'font-size:.85rem;padding:5px 3px;{border}">✓</td>')
+            prev_guest = guest_name
         grid_rows += f"<tr>{name_cell}{cells}</tr>"
 
     room_grid_html = f"""
