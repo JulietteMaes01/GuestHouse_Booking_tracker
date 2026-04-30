@@ -214,7 +214,7 @@
           <label class="option-row">
             <input type="radio" name="booking_source" value="{{ src }}"
               {% if r_src == src or (not r_src and src == 'Email/phone') %}checked{% endif %}>
-            {% if src == 'Email/phone' %}📞{% elif src == 'Social Deal' %}🎟️{% elif src == 'Expedia' %}✈️{% endif %}
+            {% if src == 'Email/phone' %}📞{% elif src == 'Social Deal' %}🎟️{% elif src == 'Umfulana' %}🤝{% elif src == 'Expedia' %}✈️{% endif %}
             {{ src }}
           </label>
           {% endfor %}
@@ -309,6 +309,10 @@
                  {% if active_tab == 'room' and form_data.get('table_dhotes') == '1' %}checked{% endif %}>
           🍽️ Table d'hôtes incluse (dîner)
         </label>
+        <div id="r_td_dates_section" style="display:none;margin-top:8px;padding:10px 14px;background:#FDF3E8;border-radius:8px;border-left:3px solid #D4A14A;">
+          <p style="font-size:.82rem;color:#7A5020;margin:0 0 8px 0;font-weight:600;">🗓️ Soir(s) pour la table d'hôtes :</p>
+          <div id="r_td_dates_list"></div>
+        </div>
       </div>
       <div class="form-group">
         <label class="option-row" style="cursor:pointer;">
@@ -561,6 +565,11 @@
           <input type="checkbox" name="table_dhotes" value="1" id="e_table_dhotes">
           🍽️ Table d'hôtes
         </label>
+        <div id="e_td_date_section" style="display:none;margin-top:8px;padding:10px 14px;background:#FDF3E8;border-radius:8px;border-left:3px solid #D4A14A;">
+          <label for="e_td_date" style="font-size:.82rem;color:#7A5020;font-weight:600;display:block;margin-bottom:4px;">🗓️ Date de la table d'hôtes :</label>
+          <input type="date" id="e_td_date" name="td_date">
+          <p style="font-size:.78rem;color:#999;margin:4px 0 0 0;">Laisser vide si la date est unique et déjà renseignée dans la réservation.</p>
+        </div>
       </div>
 
       <div class="form-group">
@@ -627,11 +636,51 @@
     pill.style.display = 'none';
   }
 
+  // ── Room tab: table d'hôtes date selector (multi-night) ──────────────
+  function updateTdDates() {
+    var arrVal   = document.getElementById('r_arrival_date').value;
+    var depVal   = document.getElementById('r_departure_date').value;
+    var checked  = document.getElementById('r_table_dhotes').checked;
+    var section  = document.getElementById('r_td_dates_section');
+    var list     = document.getElementById('r_td_dates_list');
+    if (!checked || !arrVal || !depVal) { section.style.display = 'none'; return; }
+    // Parse as local dates to avoid UTC midnight off-by-one
+    var ap = arrVal.split('-'),  dp = depVal.split('-');
+    var arr = new Date(+ap[0], +ap[1]-1, +ap[2]);
+    var dep = new Date(+dp[0], +dp[1]-1, +dp[2]);
+    var nights = Math.round((dep - arr) / 86400000);
+    if (nights <= 1) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    var DAYS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+    var html = '';
+    for (var i = 0; i < nights; i++) {
+      var d  = new Date(+ap[0], +ap[1]-1, +ap[2] + i);
+      var dd = String(d.getDate()).padStart(2, '0');
+      var mm = String(d.getMonth()+1).padStart(2, '0');
+      var yyyy = d.getFullYear();
+      var val = dd + '/' + mm + '/' + yyyy;
+      html += '<label class="option-row" style="cursor:pointer;margin-bottom:4px;">'
+            + '<input type="checkbox" name="td_dates" value="' + val + '" checked>'
+            + ' Soir du ' + DAYS[d.getDay()] + ' ' + dd + '/' + mm + '</label>';
+    }
+    list.innerHTML = html;
+  }
+
+  document.getElementById('r_table_dhotes').addEventListener('change', updateTdDates);
   document.getElementById('r_arrival_date').addEventListener('change', function () {
     document.getElementById('r_departure_date').min = this.value;
     updateNights();
+    updateTdDates();
   });
-  document.getElementById('r_departure_date').addEventListener('change', updateNights);
+  document.getElementById('r_departure_date').addEventListener('change', function () {
+    updateNights();
+    updateTdDates();
+  });
+
+  // ── Extras tab: show TD date picker when checkbox is ticked ───────────
+  document.getElementById('e_table_dhotes').addEventListener('change', function () {
+    document.getElementById('e_td_date_section').style.display = this.checked ? 'block' : 'none';
+  });
 
   // ── Meal tab: brunch and petit-déjeuner are mutually exclusive ─────────
   document.getElementById('m_brunch').addEventListener('change', function () {
