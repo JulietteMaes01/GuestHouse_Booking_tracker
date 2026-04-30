@@ -11,6 +11,7 @@ Usage:
     python schedule_generator.py --no-git  # generate only (used by GitHub Actions)
 """
 import os
+import re
 import sys
 import shutil
 import subprocess
