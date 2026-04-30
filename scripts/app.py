@@ -378,6 +378,7 @@ def update_booking():
     massage_type    = request.form.get("massage_type", "").strip()
     massage_duo     = request.form.get("massage_duo") == "1"
     massage         = (massage_type + (" · Duo" if massage_duo else "")) if massage_type else ""
+    amount_str      = request.form.get("amount", "").strip()
     guest_count_str = request.form.get("guest_count", "").strip()
     notes_extra     = request.form.get("notes_extra", "").strip()
 
@@ -406,6 +407,7 @@ def update_booking():
         email_col   = headers.index("email")             if "email"             in headers else None
         td_col      = headers.index("table_dhotes")      if "table_dhotes"      in headers else None
         massage_col = headers.index("massage")           if "massage"           in headers else None
+        amount_col  = headers.index("amount")            if "amount"            in headers else None
         gc_col      = headers.index("guest_count")       if "guest_count"       in headers else None
         notes_col   = headers.index("notes")             if "notes"             in headers else None
         mod_col     = headers.index("modification_date") if "modification_date" in headers else None
@@ -454,6 +456,11 @@ def update_booking():
             ws.update_cell(row_idx, td_col + 1, str(table_dhotes))
         if massage_col is not None:
             ws.update_cell(row_idx, massage_col + 1, massage)
+        if amount_col is not None and amount_str:
+            try:
+                ws.update_cell(row_idx, amount_col + 1, float(amount_str.replace(",", ".")))
+            except ValueError:
+                pass
         if gc_col is not None and guest_count_str:
             try:
                 ws.update_cell(row_idx, gc_col + 1, max(1, int(guest_count_str)))
