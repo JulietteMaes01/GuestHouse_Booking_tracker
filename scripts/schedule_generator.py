@@ -276,11 +276,22 @@ def booking_card(row, booking_type: str) -> str:
     action_html = ""
     if booking_type in action_texts and not is_meal_only:
         action_html = f'<div class="action-box">⚠ {action_texts[booking_type]}</div>'
-    td_action      = '<div class="action-box" style="background:#FDF3E8;color:#7A4A1E;">🍽️ Prévoir le dîner Table d\'hôtes pour ce séjour.</div>' if table_dhotes else ""
+    if table_dhotes:
+        td_dates_list = _parse_td_dates(notes)
+        if td_dates_list:
+            td_dates_fmt = ", ".join(td_dates_list)
+            td_action = (f'<div class="action-box" style="background:#FDF3E8;color:#7A4A1E;">'
+                         f'🍽️ Table d\'hôtes : soir du {td_dates_fmt}.</div>')
+        else:
+            td_action = ('<div class="action-box" style="background:#FDF3E8;color:#7A4A1E;">'
+                         '🍽️ Prévoir le dîner Table d\'hôtes pour ce séjour.</div>')
+    else:
+        td_action = ""
     bf_action      = '<div class="action-box" style="background:#FFFDE7;color:#B45309;">🥐 Prévoir le petit-déjeuner pour ce séjour.</div>' if breakfast else ""
     massage_action = (f'<div class="action-box" style="background:#EDE7F6;color:#512DA8;">💆 Massage réservé : {massage} — contacter la masseuse.</div>'
                       if massage else "")
-    notes_html = f'<div class="notes-box">📝 {notes}</div>' if notes else ""
+    notes_display = re.sub(r'\[TD:[^\]]+\]\s*', '', notes).strip()
+    notes_html = f'<div class="notes-box">📝 {notes_display}</div>' if notes_display else ""
 
     # Room badge — or a "🍽️ Repas" badge for meal-only entries
     if is_meal_only:
@@ -321,6 +332,14 @@ def booking_card(row, booking_type: str) -> str:
 
 # ── Meal prep summary ──────────────────────────────────────────────────────────
 
+def _parse_td_dates(notes: str) -> list:
+    """Extract specific table d'hôtes dates from '[TD: dd/mm/yyyy, ...]' in notes."""
+    m = re.search(r'\[TD:\s*([^\]]+)\]', str(notes or ""))
+    if not m:
+        return []
+    return [d.strip() for d in m.group(1).split(',') if d.strip()]
+
+
 def _covers(row) -> int:
     """Return guest count for a row, defaulting to 2 for room bookings and 1 for meal-only."""
     try:
@@ -345,8 +364,13 @@ def meal_prep_summary(df_active: pd.DataFrame, target_date: date) -> str:
 
     # ── Table d'hôtes tonight ──────────────────────────────────────────────
     td_entries = []
+    target_date_str = target_date.strftime("%d/%m/%Y")
     for _, r in df_active.iterrows():
         if str(r.get("table_dhotes", "")).lower() not in ("true", "1", "yes", "oui"):
+            continue
+        # If specific dates are stored in notes, only count on those nights
+        td_dates = _parse_td_dates(r.get("notes", ""))
+        if td_dates and target_date_str not in td_dates:
             continue
         is_meal_only = not any(r.get(f"room{i}") for i in range(1, 5))
         dep_date = r["departure_date"]

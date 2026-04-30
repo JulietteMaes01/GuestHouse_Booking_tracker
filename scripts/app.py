@@ -102,6 +102,7 @@ def booking_form():
         amount_str     = request.form.get("amount", "").strip()
         notes          = request.form.get("notes", "").strip()
         table_dhotes      = request.form.get("table_dhotes") == "1"
+        td_dates          = request.form.getlist("td_dates")   # specific dinner nights (dd/mm/yyyy)
         brunch            = request.form.get("brunch") == "1"
         breakfast         = request.form.get("breakfast") == "1" or brunch
         guest_count_str   = request.form.get("guest_count", "").strip()
@@ -187,6 +188,10 @@ def booking_form():
                 active_tab=active_tab,
                 form_data=request.form,
             )
+
+        # ── Table d'hôtes date prefix (room, multi-night with specific dates) ──
+        if form_type == "room" and table_dhotes and td_dates and nights and nights > 1:
+            notes = ("[TD: " + ", ".join(td_dates) + "] " + notes).strip()
 
         # ── Build row ─────────────────────────────────────────────────────────
         amount = 0.0
@@ -369,6 +374,7 @@ def update_email():
 def update_booking():
     identifier      = request.form.get("identifier", "").strip()
     table_dhotes    = request.form.get("table_dhotes") == "1"
+    td_date_raw     = request.form.get("td_date", "").strip()   # YYYY-MM-DD from date input
     massage_type    = request.form.get("massage_type", "").strip()
     massage_duo     = request.form.get("massage_duo") == "1"
     massage         = (massage_type + (" · Duo" if massage_duo else "")) if massage_type else ""
@@ -453,9 +459,23 @@ def update_booking():
                 ws.update_cell(row_idx, gc_col + 1, max(1, int(guest_count_str)))
             except ValueError:
                 pass
-        if notes_col is not None and notes_extra:
-            existing  = matched_row[notes_col].strip() if len(matched_row) > notes_col else ""
-            new_notes = f"{existing} | {notes_extra}".strip(" |") if existing else notes_extra
+        if notes_col is not None and (td_date_raw or notes_extra):
+            existing = matched_row[notes_col].strip() if len(matched_row) > notes_col else ""
+            # Strip any existing [TD: ...] tag so we can replace it cleanly
+            clean = re.sub(r'\[TD:[^\]]+\]\s*', '', existing).strip()
+            # Build new TD prefix if a specific date was provided
+            td_prefix = ""
+            if table_dhotes and td_date_raw:
+                try:
+                    td_dt = datetime.strptime(td_date_raw, "%Y-%m-%d")
+                    td_prefix = f"[TD: {td_dt.strftime('%d/%m/%Y')}]"
+                except ValueError:
+                    pass
+            new_notes = td_prefix
+            if clean:
+                new_notes = (new_notes + " " + clean).strip()
+            if notes_extra:
+                new_notes = (new_notes + " | " + notes_extra).strip(" |") if new_notes else notes_extra
             ws.update_cell(row_idx, notes_col + 1, new_notes)
         if mod_col is not None:
             ws.update_cell(row_idx, mod_col + 1, date.today().strftime("%d/%m/%Y"))
