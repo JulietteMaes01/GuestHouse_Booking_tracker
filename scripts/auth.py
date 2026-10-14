@@ -8,7 +8,6 @@ import pickle
 
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
 import gspread
 
 from config import CREDENTIALS_FILE, TOKEN_FILE, SCOPES, SPREADSHEET_ID, WORKSHEET_GID
@@ -42,6 +41,8 @@ def get_credentials():
 
 def get_gmail_service():
     """Return an authenticated Gmail API service."""
+    # Imported here so the booking form (Sheets only) doesn't need the Gmail library.
+    from googleapiclient.discovery import build
     return build("gmail", "v1", credentials=get_credentials())
 
 
