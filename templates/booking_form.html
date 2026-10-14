@@ -210,7 +210,7 @@
       <div class="form-group">
         <label>Source de réservation <span class="required">*</span></label>
         <div class="options-grid">
-          {% for src in manual_sources %}
+          {% for src in form_sources %}
           <label class="option-row">
             <input type="radio" name="booking_source" value="{{ src }}"
               {% if r_src == src or (not r_src and src == 'Email/phone') %}checked{% endif %}>

@@ -1,0 +1,16 @@
+{# Shared look of the three day-to-day pages: logo header, centred column, footer. #}
+{% extends "base.html" %}
+{% block style %}{% include "schedule.css" %}{% endblock %}
+{% block header %}
+<header>
+  <img src="logo.png" alt="La Ferme de la Cour">
+  <h1>La Ferme de la Cour</h1>
+  <div class="sub">{% block subtitle %}{% endblock %}</div>
+</header>
+{% endblock %}
+{% block body %}
+<div class="container">
+{% block content %}{% endblock %}
+</div>
+<footer>Généré le {{ generated_at.strftime("%d/%m/%Y à %H:%M") }} · {{ owner }}</footer>
+{% endblock %}

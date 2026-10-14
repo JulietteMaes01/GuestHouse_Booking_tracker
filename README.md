@@ -1,188 +1,112 @@
 # La Ferme de la Cour — Booking Tracker
 
-## Folder structure
+Keeps the guesthouse bookings in one Google Sheet and publishes the daily schedule.
 
-```
-scripts/              Python scripts (run from here)
-  config.py           All settings (sheet ID, rooms, etc.)
-  auth.py             Google OAuth (run once, caches token)
-  email_parser.py     Gmail → parse elloha emails → Google Sheet
-  schedule_generator.py  Google Sheet → HTML → GitHub Pages
-  app.py              Flask form for manual/phone bookings
-  setup.py            One-time setup wizard
-  run.py              Daily shortcut: email_parser + schedule_generator
-  fix_phone_errors.py One-time script in case of phone number parsing errors
+1. **elloha emails → Sheet.** Booking.com, Expedia and website bookings arrive by email; `email_parser.py` copies them into the Sheet.
+2. **Booking form → Sheet.** Phone, email and walk-in bookings are typed in by Angela in a small web form (`app.py`).
+3. **Sheet → website.** `schedule_generator.py` and `analytics.py` turn the Sheet into the pages at
+   **https://juliettemaes01.github.io/GuestHouse_Booking_tracker/**
 
-docs/                 Generated HTML (served by GitHub Pages)
-  index.html          Today's schedule (main page)
-  weekly.html         This week's summary
-  logo.png            Farm logo (copied automatically)
-
-templates/            Flask HTML template
-start_form.command    Double-click to launch the booking form (macOS)
-```
+Steps 1 and 3 run by themselves on GitHub Actions, every 5 minutes during the day and every hour at night
+(`.github/workflows/update_bookings.yml`). Nothing needs to run on a laptop except the form.
 
 ---
 
-## First-time setup (do this once)
+## Where things are
 
-### 1. Install Python dependencies
+```
+scripts/
+  email_parser.py        elloha emails → Sheet                 (GitHub Actions)
+  schedule_generator.py  Sheet → docs/index, weekly, upcoming  (GitHub Actions)
+  analytics.py           Sheet → docs/analytics.html           (GitHub Actions)
+  app.py                 booking form, http://localhost:5051   (Angela's laptop)
+  setup.py               log in to Google (first time, or when the login expired)
 
-```bash
-cd "/Users/jules/Documents/other/La Ferme de la Cour/scripts"
-pip install -r ../requirements.txt
+  config.py              every setting: rooms, massages, sources, commissions, goals
+  bookings.py            a Sheet row as a Booking (dates, amounts, meals)
+  sheet.py               reading and writing the Google Sheet
+  guests.py              returning guests, nationality from the phone number
+  pages.py               fills templates/ and saves pages into docs/
+  clock.py               today's date in Belgium
+  auth.py                Google login (token in ../creds/)
+  processed_emails.json  emails already copied (so none is applied twice)
+
+templates/               page layouts: schedule pages, analytics, booking form
+docs/                    the published website (written by GitHub Actions — don't edit)
+angela/                  Angela's Windows launcher and instructions
+tools/                   build Angela's kit; refactoring safety net
+tests/                   automated tests
 ```
 
-### 2. Get Google credentials
-
-1. Go to https://console.cloud.google.com/
-2. Select (or create) your project
-3. **APIs & Services → Library** → enable:
-   - Gmail API
-   - Google Sheets API
-4. **APIs & Services → Credentials → + Create Credentials → OAuth client ID**
-   - Application type: **Desktop app**
-   - Click Create → **Download JSON**
-5. Rename the file to `credentials.json`
-6. Create a folder called `creds/` **next to** (not inside) the repo folder, and put the file there:
-   ```
-   La Ferme de la Cour/          ← parent folder
-     creds/
-       credentials.json          ← here
-     GuestHouse_Booking_tracker/ ← the repo
-       scripts/
-   ```
-   (It is gitignored — it will never be committed accidentally)
-
-> If you see "Access blocked" when authenticating:
-> Go to **APIs & Services → OAuth consent screen → Test users → + Add Users**
-> and add `lafermedelacour2016@gmail.com`
-
-### 3. Run the setup wizard
-
-```bash
-cd scripts
-python setup.py
-```
-
-A browser window will open. Sign in with `lafermedelacour2016@gmail.com` and click **Allow**.
-This creates `token.pickle` (also gitignored). You won't need to do this again unless you delete it.
-
-### 4. Clone the GitHub repo (if not already done)
-
-```bash
-git clone https://github.com/JulietteMaes01/GuestHouse_Booking_tracker.git
-```
-
-Make sure the repo path in `config.py` → `GITHUB_REPO_PATH` points to your local clone.
-If you run scripts from inside the repo folder, the default `"."` already works.
+Settings you're likely to change all live in `scripts/config.py`.
 
 ---
 
-## Daily use
+## The booking form
 
-### Parse new elloha emails + update the schedule
+**On a Mac:** double-click `start_form.command` (in the folder above the repo), or:
 
-```bash
-cd scripts
-python run.py
-```
-
-This does two things in one command:
-1. Reads new emails from Gmail and updates the Google Sheet
-2. Generates today's and this week's HTML and pushes to GitHub Pages
-
-### Or run them separately
-
-```bash
-python email_parser.py       # only sync emails → Sheet
-python schedule_generator.py # only generate HTML → GitHub
-```
-
----
-
-## Manual booking form (for phone/direct bookings)
-
-Your mother-in-law can use this from her laptop, phone, or tablet.
-
-### Starting it (you or her)
-
-**Option A — double-click:**
-Open `start_form.command` (in the root folder). Terminal opens, browser launches automatically.
-
-**Option B — from the terminal:**
 ```bash
 cd scripts
 python app.py
 ```
 
-Then open http://localhost:5051 in any browser.
+Then open http://localhost:5051. Other devices on the same Wi-Fi can use the second address it prints.
 
-**From her phone or tablet (same Wi-Fi):**
-When the app starts, the terminal prints a local network URL like `http://192.168.x.x:5000`.
-She can bookmark that on her phone.
+**For Angela (Windows):** build her kit and send it to her:
 
-### What the form does
-- Fills in a form: rooms, dates, guest name, phone, email, nationality, amount, notes
-- Automatically calculates number of nights
-- Detects if the guest is a returning customer
-- Saves directly to the Google Sheet
-
----
-
-## How to view the schedule
-
-Open the GitHub Pages URL in any browser (phone, tablet, laptop):
-
-```
-https://JulietteMaes01.github.io/GuestHouse_Booking_tracker/
-```
-
-- **Today's schedule**: the main page (`index.html`)
-- **This week's summary**: click "Cette semaine" or go to `.../weekly.html`
-
----
-
-## Automating daily runs on your Mac (optional)
-
-To run `python run.py` automatically every day at 8am, add a launchd job:
-
-1. Create `~/Library/LaunchAgents/com.lfdlc.dailyupdate.plist` with:
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key>
-  <string>com.lfdlc.dailyupdate</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>/Users/jules/.pyenv/versions/3.10.11/bin/python</string>
-    <string>/Users/jules/Documents/other/La Ferme de la Cour/scripts/run.py</string>
-  </array>
-  <key>StartCalendarInterval</key>
-  <dict>
-    <key>Hour</key>
-    <integer>8</integer>
-    <key>Minute</key>
-    <integer>0</integer>
-  </dict>
-  <key>StandardOutPath</key>
-  <string>/tmp/lfdlc_update.log</string>
-  <key>StandardErrorPath</key>
-  <string>/tmp/lfdlc_update.log</string>
-</dict>
-</plist>
-```
-
-2. Load it:
 ```bash
-launchctl load ~/Library/LaunchAgents/com.lfdlc.dailyupdate.plist
+python tools/build_angela_kit.py
 ```
 
-> Your Mac must be on (not sleeping) at 8am for this to run.
+This creates `La Ferme de la Cour - Angela.zip` next to the repo, with the form only and never the Google login.
+She extracts it over her folder; the steps are in `angela/INSTRUCTIONS_ANGELA.md`.
+She needs Python 3.8+ and, once: `pip install -r requirements-form.txt`.
+
+---
+
+## First-time setup on a new computer
+
+1. Install the Python packages (or `requirements-form.txt` if only the form is needed):
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. Put the Google files in a `creds/` folder **next to** the repo (never inside it):
+   ```
+   La Ferme de la Cour/
+     creds/
+       credentials.json    ← OAuth client, from console.cloud.google.com (type "Desktop app")
+       token.pickle        ← created by step 3
+     GuestHouse_Booking_tracker/
+   ```
+3. Log in:
+   ```bash
+   cd scripts
+   python setup.py
+   ```
+
+GitHub Actions gets the same two files from the repo secrets `GOOGLE_CREDENTIALS_B64` and `GOOGLE_TOKEN_B64`
+(base64 of each file).
+
+---
+
+## Changing the code safely
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest tests
+```
+
+For changes that could affect how pages look, the screenshot check compares every page and form state,
+pixel for pixel, at six test dates:
+
+```bash
+python tools/snapshot_sheet.py                    # once: copy the Sheet to tests/fixtures/
+python tools/render_and_screenshot.py save before # before your change
+python tools/render_and_screenshot.py compare before
+```
+
+`tests/fixtures/` and `tests/golden/` contain guest data: they are gitignored and stay on your computer.
 
 ---
 
@@ -190,9 +114,9 @@ launchctl load ~/Library/LaunchAgents/com.lfdlc.dailyupdate.plist
 
 | Problem | Fix |
 |---|---|
-| `credentials.json not found` | Download it from Google Cloud Console (see step 2) |
-| `Access blocked: app not verified` | Add the Gmail address as a Test User in OAuth consent screen |
-| `token.pickle` expired | Delete `creds/token.pickle` (next to the repo) and re-run `python setup.py` |
-| Email not parsed | Check that the email is from `no-reply@elloha.com` and has a reference like `\| U...` or `\| P...` |
-| Git push fails | Make sure you're authenticated with GitHub (`gh auth login` or SSH key) |
-| Flask form not saving | Check that `token.pickle` exists and has Sheets scope |
+| Pages not updating | GitHub → **Actions** tab → open the last red run to see the error |
+| `credentials.json not found` | Download it from Google Cloud Console (see setup step 2) |
+| Google login expired | Delete `creds/token.pickle`, run `python setup.py`, then update the `GOOGLE_TOKEN_B64` secret |
+| "Access blocked: app not verified" | Google Cloud Console → OAuth consent screen → Test users → add the farm's Gmail address |
+| An email wasn't copied | It must come from `no-reply@elloha.com` with a reference like `\| U…` or `\| P…` in the subject |
+| Form says "Erreur de connexion au Google Sheet" | Check the internet connection; then the Google login (row above) |

@@ -1,77 +1,55 @@
 """
-analytics.py  –  La Ferme de la Cour
-Generates docs/analytics.html with charts from the Google Sheet.
-Run: python analytics.py
+analytics.py
+────────────
+Builds docs/analytics.html: key numbers and charts about all bookings.
+
+    python analytics.py
+
+GitHub Actions runs it after schedule_generator.py. The page is only rewritten
+when its content changed, so the repo doesn't grow on every run.
 """
+from __future__ import annotations
 
-import os, sys, io, base64, warnings
+import base64
+import io
+import logging
+import warnings
 from collections import Counter, defaultdict
-from datetime import datetime, date, timedelta
-from zoneinfo import ZoneInfo
-
-_TZ = ZoneInfo("Europe/Brussels")
+from datetime import date
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
-import warnings
-warnings.filterwarnings("ignore")
 
-# ── local imports ────────────────────────────────────────────────────────────
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import clock
+import pages
 from auth import get_worksheet
-from config import DOCS_FOLDER, GITHUB_REPO_PATH, ROOMS, COMMISSIONS, BOOKING_GOALS, SOURCE_ALIASES
+from bookings import Booking, load_bookings
+from config import BOOKING_GOALS, ROOMS
+from guests import nationality_in_french
 
-# ── colour themes ─────────────────────────────────────────────────────────────
-# Change THEME to switch the full palette. "P01" or "P03".
-THEME = "P01"
+warnings.filterwarnings("ignore")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(message)s")
+log = logging.getLogger(__name__)
 
-_THEMES = {
-    "P01": {  # L'Ardenne Authentique
-        "brown":      "#4A5D4E",   # Vert Épicéa
-        "secondary":  "#7A8C7E",
-        "accent":     "#D4A373",   # Terre de Sienne
-        "light":      "#C9D5CB",
-        "gold":       "#A8B8AC",
-        "bg":         "#F1EFE7",   # Laine Grège
-        "text":       "#2C2C2C",   # Ardoise Fumée
-        "shadow_rgb": "74,93,78",
-        "rooms":      ["#4A5D4E", "#D4A373", "#C9D5CB", "#E8E2D8"],
-        "sources":    {"Booking.com": "#4A5D4E", "Website": "#D4A373", "Email/phone": "#7A8C7E", "Social Deal": "#A8B8AC", "Expedia": "#C9D5CB", "Unknown": "#E8E2D8"},
-        "goal_hit":   "#4A5D4E",
-        "goal_miss":  "#D4A373",
-    },
-    "P03": {  # La Table d'Hôtes
-        "brown":      "#8D5B4C",   # Vieux Bordeaux
-        "secondary":  "#A67C6E",
-        "accent":     "#E6C199",   # Paille Dorée
-        "light":      "#E8D5C0",
-        "gold":       "#C4A882",
-        "bg":         "#FFF8F0",   # Fleur de Lait
-        "text":       "#3E3E3E",   # Bistre
-        "shadow_rgb": "141,91,76",
-        "rooms":      ["#8D5B4C", "#E6C199", "#E8D5C0", "#F5E8D5"],
-        "sources":    {"Booking.com": "#8D5B4C", "Website": "#E6C199", "Email/phone": "#A67C6E", "Social Deal": "#E8D5C0", "Expedia": "#F5E8D5", "Unknown": "#D5C5B0"},
-        "goal_hit":   "#8D5B4C",
-        "goal_miss":  "#E6C199",
-    },
-}
-
-_t            = _THEMES[THEME]
-BROWN         = _t["brown"]
-SECONDARY     = _t["secondary"]
-LIGHT         = _t["light"]
-ACCENT        = _t["accent"]
-GOLD          = _t["gold"]
-BG            = _t["bg"]
-TEXT_COLOR    = _t["text"]
-SHADOW_RGB    = _t["shadow_rgb"]
-ROOMS_COLORS  = _t["rooms"]
-SOURCE_COLORS = _t["sources"]
-GOAL_HIT      = _t["goal_hit"]
-GOAL_MISS     = _t["goal_miss"]
+# ── Colours (L'Ardenne Authentique palette) ───────────────────────────────────
+BROWN         = "#4A5D4E"   # Vert Épicéa — main colour
+SECONDARY     = "#7A8C7E"
+ACCENT        = "#D4A373"   # Terre de Sienne
+LIGHT         = "#C9D5CB"
+GOLD          = "#A8B8AC"
+BG            = "#F1EFE7"   # Laine Grège
+TEXT_COLOR    = "#2C2C2C"   # Ardoise Fumée
+ROOMS_COLORS  = ["#4A5D4E", "#D4A373", "#C9D5CB", "#E8E2D8"]
+SOURCE_COLORS = {"Booking.com": "#4A5D4E", "Website": "#D4A373", "Email/phone": "#7A8C7E",
+                 "Social Deal": "#A8B8AC", "Expedia": "#C9D5CB", "Umfulana": "#8B6355",
+                 "Unknown": "#E8E2D8"}
+GOAL_HIT      = BROWN
+GOAL_MISS     = ACCENT
+PAGE_COLORS   = {"brown": BROWN, "secondary": SECONDARY, "gold": GOLD, "bg": BG,
+                 "text": TEXT_COLOR, "shadow_rgb": "74,93,78"}
 
 plt.rcParams.update({
     "font.family": "sans-serif",
@@ -88,22 +66,107 @@ plt.rcParams.update({
     "axes.titlesize": 13,
 })
 
-NATIONALITY_FR = {
-    "Belgium": "Belgique", "Belgique": "Belgique",
-    "Netherlands": "Pays-Bas", "France": "France",
-    "Luxembourg": "Luxembourg", "Germany": "Allemagne",
-    "United Kingdom": "Royaume-Uni", "UK": "Royaume-Uni",
-    "Switzerland": "Suisse", "Italy": "Italie",
-    "Spain": "Espagne", "United States": "États-Unis",
-    "Austria": "Autriche", "Poland": "Pologne",
-    "Denmark": "Danemark", "Sweden": "Suède",
-    "Norway": "Norvège", "Portugal": "Portugal",
-    "Hungary": "Hongrie", "Romania": "Roumanie",
-    "China": "Chine", "Japan": "Japon",
-    "Canada": "Canada", "Australia": "Australie",
-}
 
-# ── helpers ──────────────────────────────────────────────────────────────────
+def main():
+    bookings = [b for b in load_bookings(get_worksheet()) if counts_in_stats(b)]
+    active = [b for b in bookings if not b.is_cancelled]
+    log.info(f"{len(active)} active bookings, {len(bookings)} including cancellations")
+
+    html = pages.render(
+        "analytics.html",
+        kpis=key_numbers(active),
+        charts=dashboard_charts(active, bookings),
+        colors=PAGE_COLORS,
+    )
+    # Only the "Mis à jour le …" time changed? Keep the old file: no commit for nothing.
+    pages.write("analytics.html", html, unless_only_changed=r"Mis à jour le [^<]*")
+
+
+def counts_in_stats(booking: Booking) -> bool:
+    """Real bookings only: placeholders without status, reference or arrival are skipped."""
+    return (booking.status not in ("", "Unknown")
+            and bool(booking.reference) and booking.arrival is not None)
+
+
+def stats_nationality(booking: Booking) -> str | None:
+    if booking.nationality.strip() in ("", "Unknown"):
+        return None
+    return nationality_in_french(booking.nationality)
+
+
+def dashboard_charts(rows: list[Booking], rows_with_cancelled: list[Booking]) -> list[dict]:
+    """Every chart of the page, top to bottom. Charts without enough data are left out."""
+    charts = [
+        (chart_room_popularity(rows), "Chambres les plus réservées", "", False),
+        (chart_source(rows), "Canal de réservation", "", False),
+        (chart_monthly(rows), "Réservations par mois",
+         "Réservations confirmées et modifiées uniquement", True),
+        (chart_monthly_revenue_detail(rows), "Revenus nets — 5 derniers mois",
+         "Mois en cours mis en évidence. Revenus nets après commissions.", True),
+        (chart_revenue_month(rows), "Revenus nets par mois",
+         "Booking.com : -15% commission. Mettre à jour dans config.py quand le taux exact est confirmé.", True),
+        (chart_yoy_weekly(rows), "Rythme de croissance (cumulé par semaine)",
+         "Comparaison année vs année", True),
+        (chart_source_trend(rows), "Canal de réservation par trimestre", "", True),
+        (chart_day_of_week(rows), "Jour d'arrivée préféré", "", False),
+        (chart_nights_distribution(rows), "Durée des séjours", "", False),
+        (chart_nationality(rows), "Nationalités (top 8)", "", False),
+        (chart_avg_revenue_per_room(rows), "Revenu moyen par chambre (net)",
+         "Après commission Booking.com. Divisé si plusieurs chambres réservées ensemble.", False),
+        (chart_lead_time(rows), "Délai de réservation",
+         "Jours entre date de réservation et arrivée", False),
+        (chart_repeat_guests(rows), "Fidélité des clients", "", False),
+        # Marketing insights
+        (chart_booking_day_of_week(rows), "Quel jour réserve-t-on le plus ? (par saison)",
+         "Jour où la réservation est faite (pas le jour d'arrivée) — basé sur la saison d'arrivée", True),
+        (chart_lead_time_by_month(rows), "Combien de jours à l'avance réserve-t-on selon le mois ?",
+         "Utile pour planifier vos campagnes publicitaires", True),
+        (chart_cancellation_rate(rows_with_cancelled), "Taux d'annulation par canal", "", False),
+        (chart_revenue_per_night(rows), "Revenu net moyen par nuit (par canal)",
+         "Après commission Booking.com — valeur réelle de chaque canal", False),
+        # Goals & meals
+        (chart_weekly_goal(rows), "Objectif hebdomadaire de réservations",
+         "Vert = objectif atteint · Orange = objectif manqué", True),
+        (chart_table_dhotes(rows), "🍽️🥐 Repas par mois",
+         "Table d'hôtes (dîner) et petit-déjeuner inclus — Booking.com et Website auto-inclus", True),
+    ]
+    return [{"png": png, "title": title, "note": note, "wide": wide}
+            for png, title, note, wide in charts if png]
+
+
+def key_numbers(rows: list[Booking]) -> list[tuple[str, str, str]]:
+    """(icon, value, label) of the cards at the top of the page."""
+    today = clock.today()
+    goal = BOOKING_GOALS.get(today.year, 0)
+    booked_this_week = sum(1 for r in rows if r.booked_on
+                           and r.booked_on.isocalendar()[:2] == today.isocalendar()[:2])
+    platform_bookings = [r for r in rows if r.source != "Email/phone"]
+    room_counts = Counter(room for r in rows for room in r.rooms)
+    top_count = room_counts.most_common(1)[0][1]
+    leads = [(r.arrival - r.booked_on).days for r in rows if r.booked_on and r.arrival >= r.booked_on]
+    covers = [r.guest_count for r in rows if r.guest_count > 0]
+
+    return [
+        ("🏠", f"{len(platform_bookings)}", "Réservations plateformes (hors email/tél)"),
+        ("💶", f"{sum(r.net_amount for r in rows if (r.arrival.year, r.arrival.month) == (today.year, today.month)):,.0f} €",
+         f"Ce mois ({pages.MONTHS_FR[today.month]})"),
+        ("💶", f"{sum(r.net_amount for r in rows):,.0f} €", "Revenus nets (après commissions)"),
+        ("🌙", f"{np.mean([r.nights for r in rows if r.nights > 0]):.1f} nuits", "Séjour moyen"),
+        ("⭐", f"{sum(1 for r in rows if r.is_repeat_guest) / len(rows) * 100 if rows else 0:.0f}%", "Clients fidèles"),
+        ("🏆", " & ".join(room.split()[0] for room, n in room_counts.items() if n == top_count), "Chambre star"),
+        ("📅", f"{int(np.median(leads)) if leads else 0} jours", "Délai médian de réservation"),
+        ("✅" if goal and booked_this_week >= goal else "🎯",
+         f"{booked_this_week}/{goal}" if goal else str(booked_this_week),
+         f"Cette semaine (objectif {today.year})"),
+        ("🍽️", f"{sum(1 for r in rows if r.has_table_dhotes)}", "Table d'hôtes"),
+        ("🥐", f"{sum(1 for r in rows if r.breakfast_booked)}", "Petit-déjeuner (réservé explicitement)"),
+        ("👥", f"{np.mean(covers):.1f}" if covers else "—", "Couverts en moyenne"),
+        ("💆", f"{sum(1 for r in rows if r.massage)}", "Massages réservés"),
+    ]
+
+
+# ── Charts (each returns a base64 PNG, or None when there is too little data) ─
+
 def _fig_to_b64(fig):
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=130, bbox_inches="tight")
@@ -111,89 +174,14 @@ def _fig_to_b64(fig):
     plt.close(fig)
     return base64.b64encode(buf.read()).decode()
 
-def _parse_date(s):
-    for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%m/%d/%Y"):
-        try:
-            return datetime.strptime(str(s).strip(), fmt).date()
-        except Exception:
-            pass
-    return None
 
-def _week_key(d):          # "2025-W23"
-    return f"{d.isocalendar()[0]}-W{d.isocalendar()[1]:02d}"
+def _sources_by_volume(rows):
+    """Booking sources present in rows, most bookings first."""
+    return [s for s, _ in Counter(r.source for r in rows).most_common()]
 
-def _norm_nat(n):
-    n = str(n).strip()
-    return NATIONALITY_FR.get(n, n) if n not in ("", "nan", "Unknown", "None") else None
-
-# ── load data ────────────────────────────────────────────────────────────────
-def load_data(include_cancelled=False):
-    ws = get_worksheet()
-    records = ws.get_all_records()
-    rows = []
-    for r in records:
-        status = str(r.get("status", "")).strip()
-        if not include_cancelled:
-            if status in ("Cancelled", "", "Unknown") or not str(r.get("reference","")).strip():
-                continue
-        else:
-            if status in ("", "Unknown") or not str(r.get("reference","")).strip():
-                continue
-        arrival   = _parse_date(r.get("arrival_date", ""))
-        departure = _parse_date(r.get("departure_date", ""))
-        booking_d = _parse_date(r.get("booking_date", ""))
-        if not arrival:
-            continue
-        rooms_booked = [str(r.get(f"room{i}", "")).strip() for i in range(1, 5)
-                        if str(r.get(f"room{i}", "")).strip()]
-        try:
-            amount = float(str(r.get("amount", 0)).replace(",", ".") or 0)
-        except Exception:
-            amount = 0.0
-        try:
-            nights = float(str(r.get("nights", 0)) or 0)
-        except Exception:
-            nights = (departure - arrival).days if departure else 0
-        source = str(r.get("booking_source", "")).strip() or "Unknown"
-        source = SOURCE_ALIASES.get(source, source)   # normalize legacy labels
-        commission = COMMISSIONS.get(source, 0.0)
-        net_amount = round(amount * (1 - commission), 2)
-        # Breakfast: explicit flag OR auto-included for Booking.com / Website
-        breakfast_explicit = str(r.get("breakfast", "")).lower() in ("true", "1", "yes", "oui")
-        breakfast = breakfast_explicit or source in {"Booking.com", "Website"}
-        try:
-            guest_count = max(0, int(float(str(r.get("guest_count", "") or 0))))
-        except (ValueError, TypeError):
-            guest_count = 0
-        massage = str(r.get("massage", "") or "").strip()
-        rows.append({
-            "source":             source,
-            "arrival":            arrival,
-            "departure":          departure,
-            "booking_d":          booking_d,
-            "rooms":              rooms_booked,
-            "amount":             amount,        # gross (what guest paid)
-            "net_amount":         net_amount,    # after commission
-            "commission":         commission,
-            "nights":             nights,
-            "nationality":        _norm_nat(r.get("nationality", "")),
-            "repeat":             str(r.get("repeat_guest", "")).lower() in ("true", "1", "yes"),
-            "table_dhotes":       str(r.get("table_dhotes", "")).lower() in ("true", "1", "yes", "oui"),
-            "breakfast":          breakfast,
-            "breakfast_explicit": breakfast_explicit,
-            "guest_count":        guest_count,
-            "is_meal_only":       len(rooms_booked) == 0,
-            "status":             status,
-            "reference":          str(r.get("reference", "")),
-            "massage":            massage,
-            "has_massage":        bool(massage),
-        })
-    return rows
-
-# ── individual charts ─────────────────────────────────────────────────────────
 
 def chart_room_popularity(rows):
-    counts = Counter(rm for r in rows for rm in r["rooms"])
+    counts = Counter(rm for r in rows for rm in r.rooms)
     short  = {room: room.split(" ")[0] for room in ROOMS}
     vals   = [counts.get(room, 0) for room in ROOMS]
     fig, ax = plt.subplots(figsize=(7, 4))
@@ -207,7 +195,7 @@ def chart_room_popularity(rows):
 
 def chart_day_of_week(rows):
     DAY_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
-    counts = Counter(r["arrival"].weekday() for r in rows)
+    counts = Counter(r.arrival.weekday() for r in rows)
     vals   = [counts.get(i, 0) for i in range(7)]
     colors = [BROWN if v == max(vals) else ACCENT for v in vals]
     fig, ax = plt.subplots(figsize=(7, 4))
@@ -221,8 +209,8 @@ def chart_day_of_week(rows):
 
 def chart_monthly(rows):
     MONTH_FR = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
-    counts = Counter((r["arrival"].year, r["arrival"].month) for r in rows)
-    years  = sorted({r["arrival"].year for r in rows})
+    counts = Counter((r.arrival.year, r.arrival.month) for r in rows)
+    years  = sorted({r.arrival.year for r in rows})
     x      = np.arange(12)
     w      = 0.35 if len(years) > 1 else 0.5
     palette = [BROWN, ACCENT]
@@ -241,7 +229,7 @@ def chart_monthly(rows):
     return _fig_to_b64(fig)
 
 def chart_nationality(rows):
-    counts = Counter(r["nationality"] for r in rows if r["nationality"])
+    counts = Counter(n for n in map(stats_nationality, rows) if n)
     top = counts.most_common(8)
     labels, vals = zip(*top) if top else ([], [])
     fig, ax = plt.subplots(figsize=(7, 4.5))
@@ -257,7 +245,7 @@ def chart_nationality(rows):
     return _fig_to_b64(fig)
 
 def chart_source(rows):
-    counts = Counter(r["source"] for r in rows)
+    counts = Counter(r.source for r in rows)
     labels = list(counts.keys())
     vals   = list(counts.values())
     colors = [SOURCE_COLORS.get(l, LIGHT) for l in labels]
@@ -279,8 +267,8 @@ def chart_revenue_month(rows):
     MONTH_FR = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
     revenue = defaultdict(float)
     for r in rows:
-        revenue[(r["arrival"].year, r["arrival"].month)] += r["net_amount"]
-    years  = sorted({r["arrival"].year for r in rows})
+        revenue[(r.arrival.year, r.arrival.month)] += r.net_amount
+    years  = sorted({r.arrival.year for r in rows})
     x      = np.arange(12)
     w      = 0.35 if len(years) > 1 else 0.5
     palette = [BROWN, ACCENT]
@@ -301,8 +289,8 @@ def chart_revenue_month(rows):
     return _fig_to_b64(fig)
 
 def chart_lead_time(rows):
-    leads = [(r["arrival"] - r["booking_d"]).days
-             for r in rows if r["booking_d"] and r["arrival"] >= r["booking_d"]]
+    leads = [(r.arrival - r.booked_on).days
+             for r in rows if r.booked_on and r.arrival >= r.booked_on]
     if not leads:
         return None
     fig, ax = plt.subplots(figsize=(7, 4))
@@ -318,7 +306,7 @@ def chart_lead_time(rows):
 
 def chart_repeat_guests(rows):
     total   = len(rows)
-    repeats = sum(1 for r in rows if r["repeat"])
+    repeats = sum(1 for r in rows if r.is_repeat_guest)
     first   = total - repeats
     vals    = [first, repeats]
     labels  = [f"Première visite\n({first})", f"Client fidèle\n({repeats})"]
@@ -337,7 +325,7 @@ def chart_repeat_guests(rows):
     return _fig_to_b64(fig)
 
 def chart_nights_distribution(rows):
-    nights = [int(r["nights"]) for r in rows if r["nights"] and 0 < r["nights"] <= 14]
+    nights = [int(r.nights) for r in rows if r.nights and 0 < r.nights <= 14]
     counts = Counter(nights)
     xs = list(range(1, max(counts)+1))
     vals = [counts.get(x, 0) for x in xs]
@@ -355,20 +343,20 @@ def chart_nights_distribution(rows):
 
 def chart_yoy_weekly(rows):
     """Cumulative bookings per week, year vs year."""
-    years = sorted({r["arrival"].year for r in rows})
+    years = sorted({r.arrival.year for r in rows})
     if len(years) < 2:
         return None
     palette = [BROWN, ACCENT]
     fig, ax = plt.subplots(figsize=(11, 4.5))
     for i, yr in enumerate(years):
-        yr_rows = [r for r in rows if r["arrival"].year == yr]
-        weekly  = Counter(r["arrival"].isocalendar()[1] for r in yr_rows)
+        yr_rows = [r for r in rows if r.arrival.year == yr]
+        weekly  = Counter(r.arrival.isocalendar()[1] for r in yr_rows)
         xs = sorted(weekly.keys())
         cumul = np.cumsum([weekly[w] for w in xs])
         ax.plot(xs, cumul, marker="o", markersize=4, color=palette[i % len(palette)],
                 linewidth=2.2, label=str(yr))
     # Vertical line for current week
-    current_week = date.today().isocalendar()[1]
+    current_week = clock.today().isocalendar()[1]
     ax.axvline(current_week, color=TEXT_COLOR, linestyle="--", linewidth=1.5,
                alpha=0.6, zorder=5, label=f"Semaine actuelle (S{current_week})")
     ax.set_title("Réservations cumulées par semaine (année vs année)")
@@ -382,12 +370,10 @@ def chart_source_trend(rows):
     """Bookings per quarter per source."""
     quarters = defaultdict(lambda: Counter())
     for r in rows:
-        q = f"{r['arrival'].year} Q{((r['arrival'].month-1)//3)+1}"
-        quarters[q][r["source"]] += 1
+        q = f"{r.arrival.year} Q{((r.arrival.month-1)//3)+1}"
+        quarters[q][r.source] += 1
     qs = sorted(quarters.keys())
-    # All sources present in data, ordered by total volume
-    all_src_counts = Counter(r["source"] for r in rows)
-    sources = [s for s, _ in all_src_counts.most_common()]
+    sources = _sources_by_volume(rows)
     colors  = [SOURCE_COLORS.get(s, LIGHT) for s in sources]
     x = np.arange(len(qs))
     n = len(sources)
@@ -409,14 +395,14 @@ def chart_source_trend(rows):
 def chart_lead_time_by_month(rows):
     """Median booking lead time per arrival month — only past arrivals, all years combined."""
     MONTH_FR = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
-    today = date.today()
+    today = clock.today()
     monthly_leads = defaultdict(list)
     for r in rows:
         # Only count months that have fully passed so data is complete
-        if r["arrival"] >= today:
+        if r.arrival >= today:
             continue
-        if r["booking_d"] and r["arrival"] >= r["booking_d"]:
-            monthly_leads[r["arrival"].month].append((r["arrival"] - r["booking_d"]).days)
+        if r.booked_on and r.arrival >= r.booked_on:
+            monthly_leads[r.arrival.month].append((r.arrival - r.booked_on).days)
     if not monthly_leads:
         return None
     # Sort months starting from January
@@ -456,8 +442,8 @@ def chart_booking_day_of_week(rows):
     fig.suptitle("Jour de réservation par saison", fontsize=14, fontweight="bold", color=BROWN, y=1.01)
     axes_flat = axes.flatten()
     for ax, (season_label, months) in zip(axes_flat, SEASONS.items()):
-        season_rows = [r for r in rows if r["booking_d"] and r["arrival"].month in months]
-        counts = Counter(r["booking_d"].weekday() for r in season_rows)
+        season_rows = [r for r in rows if r.booked_on and r.arrival.month in months]
+        counts = Counter(r.booked_on.weekday() for r in season_rows)
         vals   = [counts.get(i, 0) for i in range(7)]
         if max(vals) == 0:
             ax.text(0.5, 0.5, "Pas de données", ha="center", va="center",
@@ -479,9 +465,9 @@ def chart_booking_day_of_week(rows):
 
 def chart_cancellation_rate(all_rows):
     """Cancellation rate (%) by booking source — uses all rows including cancelled."""
-    total_by_src  = Counter(r["source"] for r in all_rows)
-    cancel_by_src = Counter(r["source"] for r in all_rows if r["status"] == "Cancelled")
-    sources = [s for s in ["Booking.com", "Website", "Manual"] if total_by_src.get(s, 0) > 0]
+    total_by_src  = Counter(r.source for r in all_rows)
+    cancel_by_src = Counter(r.source for r in all_rows if r.is_cancelled)
+    sources = _sources_by_volume(all_rows)
     rates   = [cancel_by_src.get(s, 0) / total_by_src[s] * 100 for s in sources]
     colors  = [SOURCE_COLORS.get(s, LIGHT) for s in sources]
     fig, ax = plt.subplots(figsize=(6, 4))
@@ -503,9 +489,9 @@ def chart_revenue_per_night(rows):
     """Net revenue per night per booking source — true channel value."""
     src_rpn = defaultdict(list)
     for r in rows:
-        if r["net_amount"] > 0 and r["nights"] > 0:
-            src_rpn[r["source"]].append(r["net_amount"] / r["nights"])
-    sources = [s for s in ["Booking.com", "Website", "Manual"] if src_rpn.get(s)]
+        if r.net_amount > 0 and r.nights > 0:
+            src_rpn[r.source].append(r.net_amount / r.nights)
+    sources = [s for s in _sources_by_volume(rows) if src_rpn.get(s)]
     if not sources:
         return None
     means  = [np.mean(src_rpn[s]) for s in sources]
@@ -524,14 +510,14 @@ def chart_revenue_per_night(rows):
 def chart_weekly_goal(rows):
     """Bookings RECEIVED per week (by booking_date) vs the annual goal — primary = hit, accent = missed."""
 
-    today = date.today()
+    today = clock.today()
 
     # Group bookings by the ISO week of the booking_date (when the reservation was made)
     weekly = defaultdict(int)
     for r in rows:
-        if not r["booking_d"]:
+        if not r.booked_on:
             continue
-        iso = r["booking_d"].isocalendar()
+        iso = r.booked_on.isocalendar()
         weekly[f"{iso[0]}-W{iso[1]:02d}"] += 1
 
     if not weekly:
@@ -615,7 +601,7 @@ def chart_weekly_goal(rows):
 def chart_monthly_revenue_detail(rows):
     """Net revenue for the current month and the 4 previous months — clearly labelled bar chart."""
     MONTH_FR = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
-    today = date.today()
+    today = clock.today()
 
     # Build list of (year, month) for last 5 months ending with current month
     months = []
@@ -629,8 +615,8 @@ def chart_monthly_revenue_detail(rows):
 
     rev = defaultdict(float)
     for r in rows:
-        key = (r["arrival"].year, r["arrival"].month)
-        rev[key] += r["net_amount"]
+        key = (r.arrival.year, r.arrival.month)
+        rev[key] += r.net_amount
 
     # Need at least 2 months with data to be meaningful
     data_months = [(y, m) for y, m in months if rev.get((y, m), 0) > 0]
@@ -664,9 +650,9 @@ def chart_monthly_revenue_detail(rows):
 def chart_table_dhotes(rows):
     """How many bookings include Table d'hôtes or Breakfast, by month."""
     MONTH_FR = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
-    td_by_month    = Counter(r["arrival"].month for r in rows if r["table_dhotes"])
-    bf_by_month    = Counter(r["arrival"].month for r in rows if r["breakfast"])
-    total_by_month = Counter(r["arrival"].month for r in rows)
+    td_by_month    = Counter(r.arrival.month for r in rows if r.has_table_dhotes)
+    bf_by_month    = Counter(r.arrival.month for r in rows if r.has_breakfast)
+    total_by_month = Counter(r.arrival.month for r in rows)
     months = [m for m in range(1, 13) if total_by_month.get(m, 0) > 0]
     has_td = any(td_by_month.values())
     has_bf = any(bf_by_month.values())
@@ -678,7 +664,7 @@ def chart_table_dhotes(rows):
     tdt = [td_by_month.get(m, 0) for m in months]
     bft = [bf_by_month.get(m, 0)  for m in months]
     fig, ax = plt.subplots(figsize=(11, 4))
-    bars1 = ax.bar(x - w,     tot, w, label="Total réservations", color=LIGHT,    zorder=3)
+    ax.bar(x - w,     tot, w, label="Total réservations", color=LIGHT,    zorder=3)
     bars2 = ax.bar(x,         tdt, w, label="🍽️ Table d'hôtes",  color=BROWN,    zorder=3)
     bars3 = ax.bar(x + w,     bft, w, label="🥐 Petit-déjeuner",  color=ACCENT,   zorder=3)
     ax.bar_label(bars2, padding=3, fontsize=9, fontweight="bold")
@@ -695,9 +681,9 @@ def chart_table_dhotes(rows):
 def chart_avg_revenue_per_room(rows):
     room_rev   = defaultdict(list)
     for r in rows:
-        if r["net_amount"] > 0 and len(r["rooms"]) > 0:
-            per_room = r["net_amount"] / len(r["rooms"])
-            for rm in r["rooms"]:
+        if r.net_amount > 0 and len(r.rooms) > 0:
+            per_room = r.net_amount / len(r.rooms)
+            for rm in r.rooms:
                 room_rev[rm].append(per_room)
     short = {room: room.split(" ")[0] for room in ROOMS}
     means = [np.mean(room_rev[rm]) if room_rev[rm] else 0 for rm in ROOMS]
@@ -712,277 +698,6 @@ def chart_avg_revenue_per_room(rows):
     ax.set_ylim(0, max(means) * 1.2)
     return _fig_to_b64(fig)
 
-def chart_revenue_rooms_vs_food(rows):
-    """Gross revenue by month, split between room bookings and meal-only bookings."""
-    MONTH_FR = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
-    room_rev = defaultdict(float)
-    food_rev = defaultdict(float)
-    for r in rows:
-        key = (r["arrival"].year, r["arrival"].month)
-        if r["is_meal_only"]:
-            food_rev[key] += r["amount"]
-        else:
-            room_rev[key] += r["amount"]
-    all_keys = sorted(set(list(room_rev.keys()) + list(food_rev.keys())))
-    if not all_keys:
-        return None
-    x          = np.arange(len(all_keys))
-    room_vals  = [room_rev[k] for k in all_keys]
-    food_vals  = [food_rev[k] for k in all_keys]
-    labels     = [f"{MONTH_FR[k[1]-1]} {str(k[0])[2:]}" for k in all_keys]
-    fig, ax    = plt.subplots(figsize=(12, 4))
-    p1 = ax.bar(x, room_vals, label="Hébergement", color=BROWN,  zorder=3)
-    p2 = ax.bar(x, food_vals, bottom=room_vals,    label="Restauration", color=ACCENT, zorder=3)
-    # Label total on top of each stack
-    for xi, (rv, fv) in enumerate(zip(room_vals, food_vals)):
-        total = rv + fv
-        if total > 0:
-            ax.text(xi, total + max(room_vals + food_vals) * 0.015,
-                    f"{total:,.0f}€", ha="center", va="bottom", fontsize=8, color=TEXT_COLOR)
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels, rotation=45, ha="right", fontsize=9)
-    ax.set_title("Revenus bruts — Hébergement vs Restauration")
-    ax.set_ylabel("€ (brut)")
-    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:,.0f} €"))
-    ax.legend(frameon=False)
-    ax.grid(axis="y", color=LIGHT, zorder=0)
-    fig.tight_layout()
-    return _fig_to_b64(fig)
-
-
-# ── KPI cards ─────────────────────────────────────────────────────────────────
-def compute_kpis(rows):
-    # Exclude Email/phone (manual) bookings from total — they skew platform stats
-    EXCLUDED_SOURCES = {"Email/phone", "Manual"}
-    platform_rows = [r for r in rows if r["source"] not in EXCLUDED_SOURCES]
-    total     = len(platform_rows)
-    this_month = date.today().month
-    this_month_year = date.today().year
-    month_revenue = sum(
-        r["net_amount"] for r in rows
-        if r["arrival"].month == this_month and r["arrival"].year == this_month_year
-    )
-    revenue   = sum(r["net_amount"] for r in rows)
-    avg_stay  = np.mean([r["nights"] for r in rows if r["nights"] > 0])
-    repeat_rt = sum(1 for r in rows if r["repeat"]) / len(rows) * 100 if rows else 0
-    room_counts = Counter(rm for r in rows for rm in r["rooms"])
-    max_count   = room_counts.most_common(1)[0][1]
-    top_room    = " & ".join(rm.split()[0] for rm, cnt in room_counts.items() if cnt == max_count)
-    leads     = [(r["arrival"] - r["booking_d"]).days
-                 for r in rows if r["booking_d"] and r["arrival"] >= r["booking_d"]]
-    med_lead  = int(np.median(leads)) if leads else 0
-    # Current week goal — count bookings MADE this week (by booking_date)
-    this_year  = date.today().year
-    this_week  = date.today().isocalendar()[1]
-    goal       = BOOKING_GOALS.get(this_year, 0)
-    week_count = sum(1 for r in rows
-                     if r["booking_d"]
-                     and r["booking_d"].isocalendar()[0] == this_year
-                     and r["booking_d"].isocalendar()[1] == this_week)
-    week_kpi   = f"{week_count}/{goal}" if goal else str(week_count)
-    week_icon  = "✅" if goal and week_count >= goal else "🎯"
-    td_count      = sum(1 for r in rows if r["table_dhotes"])
-    bf_count      = sum(1 for r in rows if r["breakfast_explicit"])   # explicit only
-    massage_count = sum(1 for r in rows if r["has_massage"])
-    cover_vals    = [r["guest_count"] for r in rows if r["guest_count"] > 0]
-    avg_covers    = f"{np.mean(cover_vals):.1f}" if cover_vals else "—"
-    MONTH_FR_LONG = ["Janvier","Février","Mars","Avril","Mai","Juin",
-                     "Juillet","Août","Septembre","Octobre","Novembre","Décembre"]
-    return [
-        ("🏠", f"{total}", "Réservations plateformes (hors email/tél)"),
-        ("💶", f"{month_revenue:,.0f} €", f"Ce mois ({MONTH_FR_LONG[this_month-1]})"),
-        ("💶", f"{revenue:,.0f} €", "Revenus nets (après commissions)"),
-        ("🌙", f"{avg_stay:.1f} nuits", "Séjour moyen"),
-        ("⭐", f"{repeat_rt:.0f}%", "Clients fidèles"),
-        ("🏆", top_room, "Chambre star"),
-        ("📅", f"{med_lead} jours", "Délai médian de réservation"),
-        (week_icon, week_kpi, f"Cette semaine (objectif {this_year})"),
-        ("🍽️", f"{td_count}", "Table d'hôtes"),
-        ("🥐", f"{bf_count}", "Petit-déjeuner (réservé explicitement)"),
-        ("👥", avg_covers, "Couverts en moyenne"),
-        ("💆", f"{massage_count}", "Massages réservés"),
-    ]
-
-# ── HTML builder ──────────────────────────────────────────────────────────────
-def build_html(kpis, charts):
-    now = datetime.now(_TZ).strftime("%d/%m/%Y %H:%M")
-
-    def card(b64, title, note=""):
-        note_html = f'<p class="note">{note}</p>' if note else ""
-        return f"""
-        <div class="chart-card">
-            <h3>{title}</h3>
-            <img src="data:image/png;base64,{b64}" alt="{title}">
-            {note_html}
-        </div>"""
-
-    kpi_html = "".join(f"""
-        <div class="kpi">
-            <span class="kpi-icon">{icon}</span>
-            <span class="kpi-val">{val}</span>
-            <span class="kpi-lbl">{lbl}</span>
-        </div>""" for icon, val, lbl in kpis)
-
-    charts_html = ""
-    for b64, title, note, wide in charts:
-        cls = "chart-card wide" if wide else "chart-card"
-        note_html = f'<p class="note">{note}</p>' if note else ""
-        charts_html += f"""
-        <div class="{cls}">
-            <h3>{title}</h3>
-            <img src="data:image/png;base64,{b64}" alt="{title}">
-            {note_html}
-        </div>"""
-
-    return f"""<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>La Ferme de la Cour — Analytiques</title>
-<style>
-  *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  body {{ font-family: Arial, sans-serif; background: {BG}; color: {TEXT_COLOR}; }}
-  header {{ background: {BROWN}; color: white; padding: 28px 32px 20px; }}
-  header h1 {{ font-size: 1.7rem; font-weight: bold; }}
-  header p  {{ font-size: 0.9rem; opacity: 0.8; margin-top: 4px; }}
-  .kpis {{ display: flex; flex-wrap: wrap; gap: 16px; padding: 28px 32px 8px; }}
-  .kpi  {{ background: white; border-radius: 12px; padding: 18px 22px;
-           flex: 1 1 140px; box-shadow: 0 2px 8px rgba({SHADOW_RGB},.1);
-           display: flex; flex-direction: column; align-items: center; text-align: center; }}
-  .kpi-icon {{ font-size: 1.7rem; margin-bottom: 6px; }}
-  .kpi-val  {{ font-size: 1.4rem; font-weight: bold; color: {BROWN}; }}
-  .kpi-lbl  {{ font-size: 0.78rem; color: {SECONDARY}; margin-top: 3px; }}
-  .grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(460px, 1fr));
-           gap: 20px; padding: 24px 32px 40px; }}
-  .chart-card {{ background: white; border-radius: 14px; padding: 20px 22px;
-                 box-shadow: 0 2px 8px rgba({SHADOW_RGB},.1); }}
-  .chart-card.wide {{ grid-column: 1 / -1; }}
-  .chart-card h3 {{ font-size: 0.95rem; color: {SECONDARY}; margin-bottom: 12px;
-                    text-transform: uppercase; letter-spacing: .06em; }}
-  .chart-card img {{ width: 100%; height: auto; border-radius: 6px; }}
-  .note {{ font-size: 0.8rem; color: #9E9E9E; margin-top: 10px; font-style: italic; }}
-  footer {{ text-align: center; padding: 20px; font-size: 0.8rem; color: {GOLD}; }}
-  nav   {{ display: flex; justify-content: center; background: white;
-           border-bottom: 2px solid {GOLD}; margin-bottom: 0;
-           overflow-x: auto; -webkit-overflow-scrolling: touch; }}
-  nav a {{ color: {SECONDARY}; text-decoration: none; padding: 12px 16px;
-           font-weight: 600; font-size: .85rem; border-bottom: 3px solid transparent;
-           margin-bottom: -2px; transition: color .15s; white-space: nowrap; flex-shrink: 0; }}
-  nav a:hover  {{ color: {BROWN}; }}
-  nav a.active {{ color: {BROWN}; border-bottom-color: {BROWN}; }}
-  @media (max-width: 600px) {{ .grid {{ grid-template-columns: 1fr; padding: 16px; }} }}
-</style>
-</head>
-<body>
-<header>
-  <h1>🏡 La Ferme de la Cour — Analytiques</h1>
-  <p>Mis à jour le {now}</p>
-</header>
-<nav>
-  <a href="index.html">📅 Aujourd'hui</a>
-  <a href="weekly.html">📆 Cette semaine</a>
-  <a href="upcoming.html">🗓️ Semaines prochaines</a>
-  <a href="analytics.html" class="active">📊 Analytiques</a>
-</nav>
-<section class="kpis">{kpi_html}</section>
-<section class="grid">{charts_html}</section>
-<footer>La Ferme de la Cour · Généré automatiquement</footer>
-</body>
-</html>"""
-
-# ── main ──────────────────────────────────────────────────────────────────────
-def main():
-    print("Chargement des données…")
-    rows      = load_data(include_cancelled=False)
-    all_rows  = load_data(include_cancelled=True)
-    print(f"  {len(rows)} réservations actives, {len(all_rows)} au total (avec annulations)")
-
-    print("Génération des graphiques…")
-    kpis = compute_kpis(rows)
-
-    charts = []  # (b64, title, note, wide)
-
-    c = chart_room_popularity(rows)
-    charts.append((c, "Chambres les plus réservées", "", False))
-
-    c = chart_source(rows)
-    charts.append((c, "Canal de réservation", "", False))
-
-    c = chart_monthly(rows)
-    charts.append((c, "Réservations par mois", "Réservations confirmées et modifiées uniquement", True))
-
-    c = chart_monthly_revenue_detail(rows)
-    if c:
-        charts.append((c, "Revenus nets — 5 derniers mois",
-                       "Mois en cours mis en évidence. Revenus nets après commissions.", True))
-
-    c = chart_revenue_month(rows)
-    charts.append((c, "Revenus nets par mois", "Booking.com : -15% commission. Mettre à jour dans config.py quand le taux exact est confirmé.", True))
-
-    c = chart_yoy_weekly(rows)
-    if c:
-        charts.append((c, "Rythme de croissance (cumulé par semaine)", "Comparaison année vs année", True))
-
-    c = chart_source_trend(rows)
-    charts.append((c, "Canal de réservation par trimestre", "", True))
-
-    c = chart_day_of_week(rows)
-    charts.append((c, "Jour d'arrivée préféré", "", False))
-
-    c = chart_nights_distribution(rows)
-    charts.append((c, "Durée des séjours", "", False))
-
-    c = chart_nationality(rows)
-    charts.append((c, "Nationalités (top 8)", "", False))
-
-    c = chart_avg_revenue_per_room(rows)
-    charts.append((c, "Revenu moyen par chambre (net)", "Après commission Booking.com. Divisé si plusieurs chambres réservées ensemble.", False))
-
-    c = chart_lead_time(rows)
-    if c:
-        charts.append((c, "Délai de réservation", "Jours entre date de réservation et arrivée", False))
-
-    c = chart_repeat_guests(rows)
-    charts.append((c, "Fidélité des clients", "", False))
-
-    # ── Marketing insights ────────────────────────────────────────────────────
-    c = chart_booking_day_of_week(rows)
-    charts.append((c, "Quel jour réserve-t-on le plus ? (par saison)",
-                   "Jour où la réservation est faite (pas le jour d'arrivée) — basé sur la saison d'arrivée", True))
-
-    c = chart_lead_time_by_month(rows)
-    if c:
-        charts.append((c, "Combien de jours à l'avance réserve-t-on selon le mois ?",
-                       "Utile pour planifier vos campagnes publicitaires", True))
-
-    c = chart_cancellation_rate(all_rows)
-    charts.append((c, "Taux d'annulation par canal", "", False))
-
-    c = chart_revenue_per_night(rows)
-    if c:
-        charts.append((c, "Revenu net moyen par nuit (par canal)",
-                       "Après commission Booking.com — valeur réelle de chaque canal", False))
-
-    # ── Goals & Table d'hôtes ─────────────────────────────────────────────────
-    c = chart_weekly_goal(rows)
-    if c:
-        charts.append((c, "Objectif hebdomadaire de réservations",
-                       "Vert = objectif atteint · Orange = objectif manqué", True))
-
-    c = chart_table_dhotes(rows)
-    if c:
-        charts.append((c, "🍽️🥐 Repas par mois",
-                       "Table d'hôtes (dîner) et petit-déjeuner inclus — Booking.com et Website auto-inclus", True))
-
-    html = build_html(kpis, charts)
-
-    out = os.path.join(GITHUB_REPO_PATH, DOCS_FOLDER, "analytics.html")
-    os.makedirs(os.path.dirname(out), exist_ok=True)
-    with open(out, "w", encoding="utf-8") as f:
-        f.write(html)
-    print(f"  ✓ Sauvegardé : {out}")
-    print("Terminé!")
 
 if __name__ == "__main__":
     main()

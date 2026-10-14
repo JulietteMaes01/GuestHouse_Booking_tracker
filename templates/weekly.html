@@ -1,0 +1,61 @@
+{# This week (Monday to Sunday): key numbers, occupancy, room grid, sources, returning guests. #}
+{% extends "schedule_layout.html" %}
+{% block title %}La Ferme de la Cour — Semaine{% endblock %}
+{% block subtitle %}Semaine du {{ week_start | day_month }} au {{ week_end | day_month }} {{ week_end.year }}{% endblock %}
+{% block content %}
+<div class="stat-grid">
+{% for value, label in stats %}
+  <div class="stat-card">
+    <div class="stat-value">{{ value }}</div>
+    <div class="stat-label">{{ label }}</div>
+  </div>
+{% endfor %}
+</div>
+
+<div class="section-title">📅 Taux d'Occupation</div>
+<table>
+  <thead><tr><th>Jour</th><th>Occupation</th><th>Chambres</th></tr></thead>
+  <tbody>
+{% for day in occupancy %}
+    <tr><td>{{ day.date | short_date }}</td><td><span class="occ-bar" style="width:{{ day.percent }}px"></span>{{ day.percent }}%</td><td>{{ day.rooms_taken }}/{{ day.rooms_total }}</td></tr>
+{% endfor %}
+  </tbody>
+</table>
+
+<div class="section-title">🛏️ Disponibilités des chambres</div>
+<div class="room-grid-scroll">
+<table class="room-grid">
+  <thead><tr><th class="room">Chambre</th>{% for day in week_days %}<th>{{ (day | weekday)[:3] }}<br>{{ day.day }}/{{ day.month }}</th>{% endfor %}</tr></thead>
+  <tbody>
+{% for row in room_grid %}
+    <tr><td class="room" style="color:{{ row.look.color }};">{{ row.look.emoji }} {{ row.name }}</td>
+    {%- for cell in row.cells %}
+      {%- if cell.guest %}<td class="taken{{ ' new-guest' if cell.new_guest }}" style="background:{{ row.look.bg }};color:{{ row.look.color }};">{{ cell.guest }}</td>
+      {%- else %}<td class="free">✓</td>{% endif %}
+    {%- endfor %}</tr>
+{% endfor %}
+  </tbody>
+</table>
+</div>
+
+<div class="section-title">📊 Réservations par Source</div>
+<table>
+  <thead><tr><th>Source</th><th>Arrivées</th></tr></thead>
+  <tbody>
+{% for source, count in sources %}
+    <tr><td>{{ source }}</td><td>{{ count }}</td></tr>
+{% else %}
+    <tr><td colspan="2">Aucune arrivée cette semaine</td></tr>
+{% endfor %}
+  </tbody>
+</table>
+{% if repeat_guests %}
+
+<div class="section-title">⭐ Clients Fidèles cette semaine</div>
+<ul class="repeat-list">
+{% for b in repeat_guests %}
+  <li><strong>{{ b.guest_name }}</strong> ({{ b.nationality }}) — {{ flag_for(b.nationality) }}</li>
+{% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

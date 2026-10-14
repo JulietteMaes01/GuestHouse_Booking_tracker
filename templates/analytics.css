@@ -1,0 +1,31 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: {{ colors.bg }}; color: {{ colors.text }}; }
+header { background: {{ colors.brown }}; color: white; padding: 28px 32px 20px; }
+header h1 { font-size: 1.7rem; font-weight: bold; }
+header p  { font-size: 0.9rem; opacity: 0.8; margin-top: 4px; }
+.kpis { display: flex; flex-wrap: wrap; gap: 16px; padding: 28px 32px 8px; }
+.kpi  { background: white; border-radius: 12px; padding: 18px 22px;
+        flex: 1 1 140px; box-shadow: 0 2px 8px rgba({{ colors.shadow_rgb }},.1);
+        display: flex; flex-direction: column; align-items: center; text-align: center; }
+.kpi-icon { font-size: 1.7rem; margin-bottom: 6px; }
+.kpi-val  { font-size: 1.4rem; font-weight: bold; color: {{ colors.brown }}; }
+.kpi-lbl  { font-size: 0.78rem; color: {{ colors.secondary }}; margin-top: 3px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(460px, 1fr));
+        gap: 20px; padding: 24px 32px 40px; }
+.chart-card { background: white; border-radius: 14px; padding: 20px 22px;
+              box-shadow: 0 2px 8px rgba({{ colors.shadow_rgb }},.1); }
+.chart-card.wide { grid-column: 1 / -1; }
+.chart-card h3 { font-size: 0.95rem; color: {{ colors.secondary }}; margin-bottom: 12px;
+                 text-transform: uppercase; letter-spacing: .06em; }
+.chart-card img { width: 100%; height: auto; border-radius: 6px; }
+.note { font-size: 0.8rem; color: #9E9E9E; margin-top: 10px; font-style: italic; }
+footer { text-align: center; padding: 20px; font-size: 0.8rem; color: {{ colors.gold }}; }
+nav   { display: flex; justify-content: center; background: white;
+        border-bottom: 2px solid {{ colors.gold }}; margin-bottom: 0;
+        overflow-x: auto; -webkit-overflow-scrolling: touch; }
+nav a { color: {{ colors.secondary }}; text-decoration: none; padding: 12px 16px;
+        font-weight: 600; font-size: .85rem; border-bottom: 3px solid transparent;
+        margin-bottom: -2px; transition: color .15s; white-space: nowrap; flex-shrink: 0; }
+nav a:hover  { color: {{ colors.brown }}; }
+nav a.active { color: {{ colors.brown }}; border-bottom-color: {{ colors.brown }}; }
+@media (max-width: 600px) { .grid { grid-template-columns: 1fr; padding: 16px; } }

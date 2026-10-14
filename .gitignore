@@ -13,3 +13,9 @@ __pycache__/
 # Data files
 *.xlsx
 .DS_Store
+
+# Local refactoring safety net — contains guest personal data, never commit
+tests/fixtures/
+tests/golden/
+PLAN.md
+CRITIQUE.md

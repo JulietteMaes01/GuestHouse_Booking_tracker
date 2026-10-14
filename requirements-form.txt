@@ -1,0 +1,6 @@
+# Just what the booking form (app.py) needs — this is what Angela installs:
+#   pip install -r requirements-form.txt
+flask>=3.0.0
+gspread>=5.7.0
+google-auth>=2.0.0
+google-auth-oauthlib>=1.0.0
