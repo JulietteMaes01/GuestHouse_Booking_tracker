@@ -1,7 +1,7 @@
 """
 email_parser.py
 ───────────────
-Copies elloha booking emails from the lafermedelacour2016@gmail.com inbox
+Copies elloha booking emails from the contact@lafermedelacour.be inbox
 into the Google Sheet:
 
   • New booking   → new row
