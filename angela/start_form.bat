@@ -27,7 +27,7 @@ if errorlevel 1 (
     echo  Premiere utilisation sur cet ordinateur :
     echo  installation des modules, patientez une minute...
     echo.
-    %PY% -m pip install --user --quiet --disable-pip-version-check -r ..\requirements-form.txt
+    %PY% -m pip install --user --quiet --disable-pip-version-check --no-warn-script-location -r ..\requirements-form.txt
     if errorlevel 1 goto install_failed
 )
 
@@ -62,10 +62,10 @@ goto end
 :no_python
 echo  [!] Python n'est pas installe sur cet ordinateur.
 echo.
-echo      1. La page de telechargement s'ouvre : cliquez sur "Download Python".
-echo      2. Pendant l'installation, COCHEZ la case "Add python.exe to PATH".
+echo      1. Ouvrez le Microsoft Store (menu Demarrer, tapez "Microsoft Store").
+echo      2. Cherchez "Python" et installez la version la plus recente
+echo         publiee par "Python Software Foundation" (bouton Obtenir).
 echo      3. Quand c'est fini, relancez start_form.bat.
-start "" https://www.python.org/downloads/
 goto end
 
 :install_failed
