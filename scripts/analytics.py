@@ -7,9 +7,6 @@ Run: python analytics.py
 import os, sys, io, base64, warnings
 from collections import Counter, defaultdict
 from datetime import datetime, date, timedelta
-from zoneinfo import ZoneInfo
-
-_TZ = ZoneInfo("Europe/Brussels")
 
 import matplotlib
 matplotlib.use("Agg")
@@ -21,6 +18,7 @@ warnings.filterwarnings("ignore")
 
 # ── local imports ────────────────────────────────────────────────────────────
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import clock
 from auth import get_worksheet
 from config import (DOCS_FOLDER, GITHUB_REPO_PATH, ROOMS, COMMISSIONS, BOOKING_GOALS,
                     SOURCE_ALIASES, BREAKFAST_AUTO_SOURCES)
@@ -373,7 +371,7 @@ def chart_yoy_weekly(rows):
         ax.plot(xs, cumul, marker="o", markersize=4, color=palette[i % len(palette)],
                 linewidth=2.2, label=str(yr))
     # Vertical line for current week
-    current_week = date.today().isocalendar()[1]
+    current_week = clock.today().isocalendar()[1]
     ax.axvline(current_week, color=TEXT_COLOR, linestyle="--", linewidth=1.5,
                alpha=0.6, zorder=5, label=f"Semaine actuelle (S{current_week})")
     ax.set_title("Réservations cumulées par semaine (année vs année)")
@@ -412,7 +410,7 @@ def chart_source_trend(rows):
 def chart_lead_time_by_month(rows):
     """Median booking lead time per arrival month — only past arrivals, all years combined."""
     MONTH_FR = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
-    today = date.today()
+    today = clock.today()
     monthly_leads = defaultdict(list)
     for r in rows:
         # Only count months that have fully passed so data is complete
@@ -527,7 +525,7 @@ def chart_revenue_per_night(rows):
 def chart_weekly_goal(rows):
     """Bookings RECEIVED per week (by booking_date) vs the annual goal — primary = hit, accent = missed."""
 
-    today = date.today()
+    today = clock.today()
 
     # Group bookings by the ISO week of the booking_date (when the reservation was made)
     weekly = defaultdict(int)
@@ -618,7 +616,7 @@ def chart_weekly_goal(rows):
 def chart_monthly_revenue_detail(rows):
     """Net revenue for the current month and the 4 previous months — clearly labelled bar chart."""
     MONTH_FR = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
-    today = date.today()
+    today = clock.today()
 
     # Build list of (year, month) for last 5 months ending with current month
     months = []
@@ -759,8 +757,8 @@ def compute_kpis(rows):
     EXCLUDED_SOURCES = {"Email/phone", "Manual"}
     platform_rows = [r for r in rows if r["source"] not in EXCLUDED_SOURCES]
     total     = len(platform_rows)
-    this_month = date.today().month
-    this_month_year = date.today().year
+    this_month = clock.today().month
+    this_month_year = clock.today().year
     month_revenue = sum(
         r["net_amount"] for r in rows
         if r["arrival"].month == this_month and r["arrival"].year == this_month_year
@@ -775,8 +773,8 @@ def compute_kpis(rows):
                  for r in rows if r["booking_d"] and r["arrival"] >= r["booking_d"]]
     med_lead  = int(np.median(leads)) if leads else 0
     # Current week goal — count bookings MADE this week (by booking_date)
-    this_year  = date.today().year
-    this_week  = date.today().isocalendar()[1]
+    this_year  = clock.today().year
+    this_week  = clock.today().isocalendar()[1]
     goal       = BOOKING_GOALS.get(this_year, 0)
     week_count = sum(1 for r in rows
                      if r["booking_d"]
@@ -808,7 +806,7 @@ def compute_kpis(rows):
 
 # ── HTML builder ──────────────────────────────────────────────────────────────
 def build_html(kpis, charts):
-    now = datetime.now(_TZ).strftime("%d/%m/%Y %H:%M")
+    now = clock.now().strftime("%d/%m/%Y %H:%M")
 
     def card(b64, title, note=""):
         note_html = f'<p class="note">{note}</p>' if note else ""

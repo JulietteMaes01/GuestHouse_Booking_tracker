@@ -16,13 +16,11 @@ import sys
 import shutil
 import subprocess
 import logging
-from datetime import datetime, timedelta, date
-from zoneinfo import ZoneInfo
-
-_TZ = ZoneInfo("Europe/Brussels")
+from datetime import timedelta, date
 
 import pandas as pd
 
+import clock
 from auth import get_worksheet
 from config import (ROOMS, GITHUB_REPO_PATH, DOCS_FOLDER, OWNER_NAME,
                     PREPAID_SOURCES, SPLIT_PAYMENT_SOURCES, BREAKFAST_AUTO_SOURCES,
@@ -560,7 +558,7 @@ def generate_daily_html(df: pd.DataFrame, target_date: date, logo_path: str) -> 
 {nav}
 <div class="container">{body}
 </div>
-<footer>Généré le {datetime.now(_TZ).strftime("%d/%m/%Y à %H:%M")} · {OWNER_NAME}</footer>
+<footer>Généré le {clock.now().strftime("%d/%m/%Y à %H:%M")} · {OWNER_NAME}</footer>
 </body>
 </html>"""
 
@@ -751,7 +749,7 @@ def generate_weekly_html(df: pd.DataFrame, week_start: date, logo_path: str) -> 
 
   {repeat_html}
 </div>
-<footer>Généré le {datetime.now(_TZ).strftime("%d/%m/%Y à %H:%M")} · {OWNER_NAME}</footer>
+<footer>Généré le {clock.now().strftime("%d/%m/%Y à %H:%M")} · {OWNER_NAME}</footer>
 </body>
 </html>"""
 
@@ -788,7 +786,7 @@ def generate_upcoming_html(df: pd.DataFrame, today: date, logo_path: str) -> str
 {nav}
 <div class="container">{body}
 </div>
-<footer>Généré le {datetime.now(_TZ).strftime("%d/%m/%Y à %H:%M")} · {OWNER_NAME}</footer>
+<footer>Généré le {clock.now().strftime("%d/%m/%Y à %H:%M")} · {OWNER_NAME}</footer>
 </body>
 </html>"""
 
@@ -813,7 +811,7 @@ def push_to_github(today_str: str) -> None:
 
 def run():
     df     = load_data()
-    today  = date.today()
+    today  = clock.today()
 
     docs_dir = os.path.join(GITHUB_REPO_PATH, DOCS_FOLDER)
     os.makedirs(docs_dir, exist_ok=True)
