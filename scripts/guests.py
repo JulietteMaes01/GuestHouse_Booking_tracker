@@ -5,7 +5,8 @@ from __future__ import annotations
 
 import re
 
-from config import NATIONALITY_EN_TO_FR, NATIONALITY_FLAGS, PHONE_CODE_TO_NATIONALITY
+from config import NATIONALITY_EN_TO_FR
+from countries import ISO_BY_NAME, country_of_international_number, flag
 
 # Booking platforms hide the real address behind these; they can't identify a guest.
 PROXY_EMAIL_DOMAINS = ("@guest.booking.com", "@m.expediapartnercentral.com")
@@ -45,15 +46,23 @@ def detect_repeat_guest(new_row: dict, existing_rows: list[dict]) -> tuple[bool,
 
 
 def phone_to_nationality(phone) -> str:
-    """Guess the nationality (in French) from the phone's country code, or ''."""
-    digits = digits_only(phone)
+    """
+    Guess the nationality (in French) from a phone number, or '' when unsure:
+      +32 470 …, 0032 470 …, 32470… (10+ digits)  → the country of the code
+      0470 …, +0470 … (website form), 470 … (the Sheet dropped the 0) → Belgique
+    """
+    text = str(phone or "").strip()
+    digits = digits_only(text)
+    if len(set(digits)) <= 1:              # empty, or a placeholder like 0000000
+        return ""
     if digits.startswith("00"):
-        digits = digits[2:]
-    for length in (3, 2):
-        nationality = PHONE_CODE_TO_NATIONALITY.get(digits[:length])
-        if nationality:
-            return nationality
-    return ""
+        international = digits[2:]
+    elif digits.startswith("0") or (len(digits) < 10 and not text.startswith("+")):
+        return "Belgique"
+    else:
+        international = digits
+    country = country_of_international_number(international)
+    return country[1] if country else ""
 
 
 def nationality_in_french(nationality: str) -> str:
@@ -63,4 +72,5 @@ def nationality_in_french(nationality: str) -> str:
 
 
 def flag_for(nationality: str) -> str:
-    return NATIONALITY_FLAGS.get(nationality_in_french(nationality), "🌍")
+    iso_code = ISO_BY_NAME.get(nationality_in_french(nationality))
+    return flag(iso_code) if iso_code else "🌍"
