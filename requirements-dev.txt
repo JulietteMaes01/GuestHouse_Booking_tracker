@@ -1,0 +1,6 @@
+# Only needed on Juliette's Mac for tests and refactoring checks
+-r requirements.txt
+pytest
+freezegun
+pyflakes
+vermin
