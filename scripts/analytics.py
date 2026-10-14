@@ -22,7 +22,8 @@ warnings.filterwarnings("ignore")
 # ── local imports ────────────────────────────────────────────────────────────
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from auth import get_worksheet
-from config import DOCS_FOLDER, GITHUB_REPO_PATH, ROOMS, COMMISSIONS, BOOKING_GOALS, SOURCE_ALIASES
+from config import (DOCS_FOLDER, GITHUB_REPO_PATH, ROOMS, COMMISSIONS, BOOKING_GOALS,
+                    SOURCE_ALIASES, BREAKFAST_AUTO_SOURCES)
 
 # ── colour themes ─────────────────────────────────────────────────────────────
 # Change THEME to switch the full palette. "P01" or "P03".
@@ -39,7 +40,7 @@ _THEMES = {
         "text":       "#2C2C2C",   # Ardoise Fumée
         "shadow_rgb": "74,93,78",
         "rooms":      ["#4A5D4E", "#D4A373", "#C9D5CB", "#E8E2D8"],
-        "sources":    {"Booking.com": "#4A5D4E", "Website": "#D4A373", "Email/phone": "#7A8C7E", "Social Deal": "#A8B8AC", "Expedia": "#C9D5CB", "Unknown": "#E8E2D8"},
+        "sources":    {"Booking.com": "#4A5D4E", "Website": "#D4A373", "Email/phone": "#7A8C7E", "Social Deal": "#A8B8AC", "Expedia": "#C9D5CB", "Umfulana": "#8B6355", "Unknown": "#E8E2D8"},
         "goal_hit":   "#4A5D4E",
         "goal_miss":  "#D4A373",
     },
@@ -122,6 +123,10 @@ def _parse_date(s):
 def _week_key(d):          # "2025-W23"
     return f"{d.isocalendar()[0]}-W{d.isocalendar()[1]:02d}"
 
+def _sources_by_volume(rows):
+    """Booking sources present in rows, most bookings first."""
+    return [s for s, _ in Counter(r["source"] for r in rows).most_common()]
+
 def _norm_nat(n):
     n = str(n).strip()
     return NATIONALITY_FR.get(n, n) if n not in ("", "nan", "Unknown", "None") else None
@@ -160,7 +165,7 @@ def load_data(include_cancelled=False):
         net_amount = round(amount * (1 - commission), 2)
         # Breakfast: explicit flag OR auto-included for Booking.com / Website
         breakfast_explicit = str(r.get("breakfast", "")).lower() in ("true", "1", "yes", "oui")
-        breakfast = breakfast_explicit or source in {"Booking.com", "Website"}
+        breakfast = breakfast_explicit or source in BREAKFAST_AUTO_SOURCES
         try:
             guest_count = max(0, int(float(str(r.get("guest_count", "") or 0))))
         except (ValueError, TypeError):
@@ -385,9 +390,7 @@ def chart_source_trend(rows):
         q = f"{r['arrival'].year} Q{((r['arrival'].month-1)//3)+1}"
         quarters[q][r["source"]] += 1
     qs = sorted(quarters.keys())
-    # All sources present in data, ordered by total volume
-    all_src_counts = Counter(r["source"] for r in rows)
-    sources = [s for s, _ in all_src_counts.most_common()]
+    sources = _sources_by_volume(rows)
     colors  = [SOURCE_COLORS.get(s, LIGHT) for s in sources]
     x = np.arange(len(qs))
     n = len(sources)
@@ -481,7 +484,7 @@ def chart_cancellation_rate(all_rows):
     """Cancellation rate (%) by booking source — uses all rows including cancelled."""
     total_by_src  = Counter(r["source"] for r in all_rows)
     cancel_by_src = Counter(r["source"] for r in all_rows if r["status"] == "Cancelled")
-    sources = [s for s in ["Booking.com", "Website", "Manual"] if total_by_src.get(s, 0) > 0]
+    sources = _sources_by_volume(all_rows)
     rates   = [cancel_by_src.get(s, 0) / total_by_src[s] * 100 for s in sources]
     colors  = [SOURCE_COLORS.get(s, LIGHT) for s in sources]
     fig, ax = plt.subplots(figsize=(6, 4))
@@ -505,7 +508,7 @@ def chart_revenue_per_night(rows):
     for r in rows:
         if r["net_amount"] > 0 and r["nights"] > 0:
             src_rpn[r["source"]].append(r["net_amount"] / r["nights"])
-    sources = [s for s in ["Booking.com", "Website", "Manual"] if src_rpn.get(s)]
+    sources = [s for s in _sources_by_volume(rows) if src_rpn.get(s)]
     if not sources:
         return None
     means  = [np.mean(src_rpn[s]) for s in sources]
