@@ -65,7 +65,11 @@ python tools/build_angela_kit.py
 
 This creates `La Ferme de la Cour - Angela.zip` next to the repo, with the form only and never the Google login.
 She extracts it over her folder; the steps are in `angela/INSTRUCTIONS_ANGELA.md`.
-She needs Python 3.8+ and, once: `pip install -r requirements-form.txt`.
+On a new computer she installs Python once; `start_form.bat` installs the rest by itself.
+
+To test her kit on a Mac: `python tools/build_angela_kit.py --mac`, extract
+`La Ferme de la Cour - Angela (test Mac).zip`, copy `creds/` into the extracted folder and
+double-click `start_form.command`. It runs the same checks as her `start_form.bat`.
 
 ---
 

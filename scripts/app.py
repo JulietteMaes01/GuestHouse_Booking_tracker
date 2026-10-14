@@ -38,6 +38,8 @@ PORT = 5051
 FORM_DATE = "%Y-%m-%d"     # what <input type="date"> sends
 SHEET_DATE = "%d/%m/%Y"
 LOOKS_LIKE_REFERENCE = re.compile(r"^[A-Za-z]\d")   # U2603113069, M0012, …
+# What each tab writes in the Sheet's email_type column (emails write Booking/Modification/Cancellation)
+ENTRY_TYPES = {"room": "Booking", "meal": "meal_only", "cabin": "meal_cabane"}
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(message)s")
 log = logging.getLogger(__name__)
@@ -148,7 +150,7 @@ def new_booking_row(form, tab: str, existing: list[dict]) -> dict:
     row = {
         "booking_source":    booking_source(form, tab),
         "booking_date":      date.today().strftime(SHEET_DATE),
-        "email_type":        "Booking",
+        "email_type":        ENTRY_TYPES[tab],
         "status":            "Confirmed",
         "reference":         next_reference(existing),
         "room1":             rooms[0] if len(rooms) > 0 else "",

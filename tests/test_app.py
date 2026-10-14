@@ -139,6 +139,7 @@ def test_meal_booking_row(sheet, client):
     assert (row["breakfast"], row["table_dhotes"], row["guest_count"]) == (True, False, 6)
     assert row["notes"] == "[☕ Brunch | 🌱 Végétalien | 🌾 Sans gluten | ⚠️ noix] Anniversaire"
     assert row["room1"] == ""
+    assert row["email_type"] == "meal_only"
 
 
 def test_missing_fields_are_listed_and_nothing_is_saved(sheet, client):
@@ -220,6 +221,7 @@ def test_cabin_delivery_row(sheet, client):
     assert (row["guest_count"], row["amount"], row["notes"]) == (4, 68.0, "Sans noix")
     assert (row["room1"], row["guest_name"], row["phone"]) == ("", "", "")
     assert (row["table_dhotes"], row["breakfast"], row["booking_source"]) == (False, False, "Email/phone")
+    assert row["email_type"] == "meal_cabane"
 
 
 def test_cabin_delivery_needs_cabin_dishes_date_and_people(sheet, client):
