@@ -25,6 +25,7 @@ def main():
         f"{KIT_FOLDER}/INSTRUCTIONS_ANGELA.md": "angela/INSTRUCTIONS_ANGELA.md",
         f"{REPO_IN_KIT}/requirements-form.txt": "requirements-form.txt",
         f"{REPO_IN_KIT}/templates/booking_form.html": "templates/booking_form.html",
+        f"{REPO_IN_KIT}/docs/logo.png": "docs/logo.png",
     }
     for module in sorted(form_modules()):
         files[f"{REPO_IN_KIT}/scripts/{module}.py"] = f"scripts/{module}.py"

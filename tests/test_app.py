@@ -190,3 +190,9 @@ def test_extras_marks_modification_date(sheet, client):
     client.post("/update-booking", data={"identifier": "Anne", "guest_count": "4"})
     cells = written_cells(sheet)
     assert (int(cells["guest_count"]), cells["modification_date"]) == (4, "14/10/2026")
+
+
+def test_form_serves_the_logo(client):
+    response = client.get("/logo.png")
+    assert response.status_code == 200
+    assert response.mimetype == "image/png"
