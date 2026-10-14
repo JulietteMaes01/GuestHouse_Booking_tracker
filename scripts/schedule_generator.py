@@ -209,8 +209,6 @@ def booking_card(row, booking_type: str) -> str:
     rooms        = get_rooms_for_booking(row)
     is_meal_only = not rooms
     name         = str(row.get("guest_name", "") or "Hôte")
-    phone        = str(row.get("phone", "") or "")
-    email        = str(row.get("email", "") or "")
     nat          = str(row.get("nationality", "") or "")
     flag         = flag_for(nat)
     amount       = row.get("amount", "")
@@ -304,10 +302,6 @@ def booking_card(row, booking_type: str) -> str:
         rooms_html = room_badge_html(rooms)
 
     info_rows = ""
-    if phone:
-        info_rows += f'<span class="info-label">Tél.</span><span class="info-value">{phone}</span>'
-    if email and "@guest.booking.com" not in email:
-        info_rows += f'<span class="info-label">Email</span><span class="info-value">{email}</span>'
     if nat:
         info_rows += f'<span class="info-label">Nationalité</span><span class="info-value">{flag} {nat}</span>'
     if str(nights) == "0" or arr_str == dep_str:
