@@ -40,7 +40,7 @@ def _save_processed_ids(ids: set) -> None:
         json.dump(sorted(ids), fh, indent=2)
 
 from auth import get_gmail_service, get_worksheet
-from config import ELLOHA_SENDER, ROOMS, COLUMNS, PHONE_CODE_TO_NATIONALITY, NATIONALITY_EN_TO_FR
+from config import ELLOHA_SENDER, ROOMS, COLUMNS, PHONE_CODE_TO_NATIONALITY
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(message)s")
 log = logging.getLogger(__name__)
@@ -153,11 +153,11 @@ def parse_email(subject: str, body: str, received_ts: int, from_header: str = ""
 
     # ── Email type ────────────────────────────────────────────────────────────
     if "annulation" in subject_lower or "cancellation" in subject_lower:
-        email_type, status = "Cancellation", "Cancelled"
+        email_type = "Cancellation"
     elif "modification" in subject_lower:
-        email_type, status = "Modification", "Modified"
+        email_type = "Modification"
     elif "r\u00e9servation" in subject_lower or "reservation" in subject_lower:
-        email_type, status = "Booking", "Confirmed"
+        email_type = "Booking"
     else:
         return None
 
@@ -593,124 +593,5 @@ def run():
     )
 
 
-def fix_unknown_rows():
-    """
-    Find rows with booking_source='Unknown' and try to repair them by
-    searching Gmail for the original booking email.
-    Run this once to clean up any placeholder rows created before two-pass
-    processing was in place.
-    """
-    log.info("Scanning sheet for Unknown rows to fix …")
-    service   = get_gmail_service()
-    worksheet = get_worksheet()
-
-    headers, existing_records, ref_to_rownum = load_sheet_with_row_numbers(worksheet)
-
-    unknown_rows = [
-        r for r in existing_records
-        if str(r.get("booking_source", "")).strip().lower() == "unknown"
-    ]
-    log.info(f"Found {len(unknown_rows)} Unknown row(s)")
-
-    for rec in unknown_rows:
-        ref      = str(rec.get("reference") or "").strip()
-        row_num  = ref_to_rownum.get(ref)
-        if not ref or not row_num:
-            continue
-
-        log.info(f"  Searching Gmail for original booking: {ref}")
-        # Search for a booking confirmation email containing this reference
-        query  = f"from:{ELLOHA_SENDER} {ref}"
-        result = service.users().messages().list(
-            userId="me", q=query, maxResults=10
-        ).execute()
-        candidates = result.get("messages", [])
-
-        booking_row = None
-        for msg_meta in candidates:
-            try:
-                msg     = get_full_message(service, msg_meta["id"])
-                hdr     = {h["name"]: h["value"] for h in msg["payload"]["headers"]}
-                subject = str(hdr.get("Subject", ""))
-                ts      = int(msg.get("internalDate", 0))
-                body    = get_email_text(msg["payload"])
-                parsed  = parse_email(subject, body, ts)
-                if parsed and parsed.get("email_type") == "Booking" and parsed.get("reference") == ref:
-                    booking_row = parsed
-                    break
-            except Exception as exc:
-                log.error(f"    ✗ Error reading candidate {msg_meta['id']}: {exc}")
-
-        if booking_row is None:
-            log.warning(f"  ! Could not find original booking email for {ref}")
-            continue
-
-        # Overwrite booking fields but preserve the Cancelled status/date already in sheet
-        skip = {"repeat_guest", "visit_count", "status", "email_type",
-                "cancellation_date", "modification_date"}
-        updates = {k: v for k, v in booking_row.items() if k not in skip}
-        update_row_fields(worksheet, row_num, updates, headers)
-        log.info(
-            f"  ✓ Fixed {ref}  {booking_row.get('guest_name', '')}  "
-            f"({booking_row.get('arrival_date', '')} → {booking_row.get('departure_date', '')})"
-        )
-
-    log.info("fix_unknown_rows complete")
-
-
-def fix_nationalities():
-    """
-    One-off migration: normalise all nationality values in the sheet to French.
-    - Translates English values (Belgium → Belgique, etc.)
-    - Fills blank nationalities by guessing from the phone number country code.
-    Run once with:  python email_parser.py fix-nat
-    """
-    log.info("Fixing nationalities in sheet …")
-    worksheet = get_worksheet()
-    headers, existing_records, ref_to_rownum = load_sheet_with_row_numbers(worksheet)
-
-    if "nationality" not in headers or "phone" not in headers:
-        log.error("Sheet missing 'nationality' or 'phone' column — aborting")
-        return
-
-    nat_col = headers.index("nationality") + 1   # 1-indexed
-    batch   = []
-
-    for rec in existing_records:
-        ref     = str(rec.get("reference") or "").strip()
-        row_num = ref_to_rownum.get(ref)
-        if not row_num:
-            continue
-
-        current = str(rec.get("nationality") or "").strip()
-        phone   = rec.get("phone") or ""
-
-        # Translate English value if present
-        if current in NATIONALITY_EN_TO_FR:
-            new_nat = NATIONALITY_EN_TO_FR[current]
-        elif current in ("", "Unknown"):
-            # Try to guess from phone number
-            new_nat = _phone_to_nationality(phone)
-        else:
-            continue   # Already French or manual value — leave it
-
-        if new_nat and new_nat != current:
-            cell_a1 = gspread.utils.rowcol_to_a1(row_num, nat_col)
-            batch.append({"range": cell_a1, "values": [[new_nat]]})
-            log.info(f"  {ref:12s}  {current!r:20s} → {new_nat!r}")
-
-    if batch:
-        worksheet.batch_update(batch, value_input_option="RAW")
-        log.info(f"Updated {len(batch)} nationality cell(s)")
-    else:
-        log.info("Nothing to update")
-
-
 if __name__ == "__main__":
-    import sys
-    if len(sys.argv) > 1 and sys.argv[1] == "fix":
-        fix_unknown_rows()
-    elif len(sys.argv) > 1 and sys.argv[1] == "fix-nat":
-        fix_nationalities()
-    else:
-        run()
+    run()

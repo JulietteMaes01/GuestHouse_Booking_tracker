@@ -47,7 +47,7 @@ jobs:
       - name: Generate schedule HTML
         run: |
           cd scripts
-          python schedule_generator.py --no-git
+          python schedule_generator.py
 
       - name: Generate analytics dashboard
         run: |

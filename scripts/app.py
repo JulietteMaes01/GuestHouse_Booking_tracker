@@ -486,8 +486,8 @@ if __name__ == "__main__":
     print("\n" + "═" * 50)
     print("  La Ferme de la Cour — Formulaire de Réservation")
     print("═" * 50)
-    print(f"  Ouvrir dans le navigateur :")
-    print(f"  → Sur cet appareil  : http://localhost:5051")
+    print("  Ouvrir dans le navigateur :")
+    print("  → Sur cet appareil  : http://localhost:5051")
     print(f"  → Sur le réseau Wi-Fi : http://{local_ip}:5051")
     print("═" * 50 + "\n")
 

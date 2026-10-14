@@ -86,28 +86,6 @@ PHONE_CODE_TO_NATIONALITY = {
     "1":   "États-Unis",
 }
 
-# ── Normalize English → French (for fixing existing sheet data) ────────────────
-NATIONALITY_EN_TO_FR = {
-    "Belgium":        "Belgique",
-    "France":         "France",
-    "Netherlands":    "Pays-Bas",
-    "Germany":        "Allemagne",
-    "Luxembourg":     "Luxembourg",
-    "United Kingdom": "Royaume-Uni",
-    "UK":             "Royaume-Uni",
-    "Spain":          "Espagne",
-    "Italy":          "Italie",
-    "Switzerland":    "Suisse",
-    "Austria":        "Autriche",
-    "Portugal":       "Portugal",
-    "Ireland":        "Irlande",
-    "Denmark":        "Danemark",
-    "Sweden":         "Suède",
-    "Norway":         "Norvège",
-    "Poland":         "Pologne",
-    "Hungary":        "Hongrie",
-}
-
 OWNER_NAME = "Juliette Maes"
 
 # ── Booking source aliases (legacy → current label) ───────────────────────────

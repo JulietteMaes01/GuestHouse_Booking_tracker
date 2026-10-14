@@ -4,17 +4,13 @@ schedule_generator.py
 Reads the Google Sheet, generates:
   • docs/index.html        — today's room-by-room schedule
   • docs/weekly.html       — this week's summary (revenue, occupancy, …)
-Then commits and pushes both files to GitHub so GitHub Pages updates.
+GitHub Actions commits them so GitHub Pages updates.
 
 Usage:
-    python schedule_generator.py           # generate + git push
-    python schedule_generator.py --no-git  # generate only (used by GitHub Actions)
+    python schedule_generator.py
 """
 import os
 import re
-import sys
-import shutil
-import subprocess
 import logging
 from datetime import timedelta, date
 
@@ -24,7 +20,7 @@ import clock
 from auth import get_worksheet
 from config import (ROOMS, GITHUB_REPO_PATH, DOCS_FOLDER, OWNER_NAME,
                     PREPAID_SOURCES, SPLIT_PAYMENT_SOURCES, BREAKFAST_AUTO_SOURCES,
-                    SOURCE_ALIASES, MASSAGE_OPTIONS)
+                    SOURCE_ALIASES)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(message)s")
 log = logging.getLogger(__name__)
@@ -466,7 +462,7 @@ def next_week_section(df: pd.DataFrame, week_start_date: date, week_number: int)
 
 # ── Daily HTML ─────────────────────────────────────────────────────────────────
 
-def generate_daily_html(df: pd.DataFrame, target_date: date, logo_path: str) -> str:
+def generate_daily_html(df: pd.DataFrame, target_date: date) -> str:
     today_str   = fmt_date(target_date)
     target_dt   = pd.Timestamp(target_date)
 
@@ -565,7 +561,7 @@ def generate_daily_html(df: pd.DataFrame, target_date: date, logo_path: str) -> 
 
 # ── Weekly HTML ────────────────────────────────────────────────────────────────
 
-def generate_weekly_html(df: pd.DataFrame, week_start: date, logo_path: str) -> str:
+def generate_weekly_html(df: pd.DataFrame, week_start: date) -> str:
     week_end = week_start + timedelta(days=6)
     week_days = [week_start + timedelta(days=i) for i in range(7)]
 
@@ -756,7 +752,7 @@ def generate_weekly_html(df: pd.DataFrame, week_start: date, logo_path: str) -> 
 
 # ── Upcoming weeks HTML ────────────────────────────────────────────────────────
 
-def generate_upcoming_html(df: pd.DataFrame, today: date, logo_path: str) -> str:
+def generate_upcoming_html(df: pd.DataFrame, today: date) -> str:
     """Page showing the next 8 calendar weeks (starting from next Monday)."""
     # Start from next Monday (or this coming Monday if today is Sunday)
     days_until_monday = (7 - today.weekday()) % 7 or 7
@@ -791,22 +787,6 @@ def generate_upcoming_html(df: pd.DataFrame, today: date, logo_path: str) -> str
 </html>"""
 
 
-# ── GitHub push ────────────────────────────────────────────────────────────────
-
-def push_to_github(today_str: str) -> None:
-    repo = GITHUB_REPO_PATH
-    try:
-        subprocess.run(["git", "-C", repo, "add", DOCS_FOLDER], check=True)
-        subprocess.run(
-            ["git", "-C", repo, "commit", "-m", f"Schedule update — {today_str}"],
-            check=True,
-        )
-        subprocess.run(["git", "-C", repo, "push"], check=True)
-        log.info("Pushed to GitHub Pages ✓")
-    except subprocess.CalledProcessError as exc:
-        log.error(f"Git push failed: {exc}")
-
-
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def run():
@@ -816,41 +796,27 @@ def run():
     docs_dir = os.path.join(GITHUB_REPO_PATH, DOCS_FOLDER)
     os.makedirs(docs_dir, exist_ok=True)
 
-    # Copy logo into docs/ so GitHub Pages can serve it
-    logo_src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo.png")
-    logo_dst = os.path.join(docs_dir, "logo.png")
-    if os.path.exists(logo_src) and not os.path.exists(logo_dst):
-        shutil.copy2(logo_src, logo_dst)
-
     # Daily page
-    daily_html = generate_daily_html(df, today, logo_src)
+    daily_html = generate_daily_html(df, today)
     index_path = os.path.join(docs_dir, "index.html")
-    archive_path = os.path.join(docs_dir, f"{today.strftime('%Y-%m-%d')}.html")
-    for path in (index_path, archive_path):
-        with open(path, "w", encoding="utf-8") as fh:
-            fh.write(daily_html)
+    with open(index_path, "w", encoding="utf-8") as fh:
+        fh.write(daily_html)
     log.info(f"Daily HTML written → {index_path}")
 
     # Weekly page (week starts on Monday)
     week_start = today - timedelta(days=today.weekday())
-    weekly_html = generate_weekly_html(df, week_start, logo_src)
+    weekly_html = generate_weekly_html(df, week_start)
     weekly_path = os.path.join(docs_dir, "weekly.html")
     with open(weekly_path, "w", encoding="utf-8") as fh:
         fh.write(weekly_html)
     log.info(f"Weekly HTML written → {weekly_path}")
 
     # Upcoming weeks page
-    upcoming_html = generate_upcoming_html(df, today, logo_src)
+    upcoming_html = generate_upcoming_html(df, today)
     upcoming_path = os.path.join(docs_dir, "upcoming.html")
     with open(upcoming_path, "w", encoding="utf-8") as fh:
         fh.write(upcoming_html)
     log.info(f"Upcoming HTML written → {upcoming_path}")
-
-    no_git = "--no-git" in sys.argv
-    if no_git:
-        log.info("--no-git flag set — skipping git push (handled by GitHub Actions)")
-    else:
-        push_to_github(today.strftime("%Y-%m-%d"))
 
 
 if __name__ == "__main__":

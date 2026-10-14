@@ -13,7 +13,6 @@ Golden sets live in tests/golden/ (gitignored: they contain guest data).
 """
 import base64
 import difflib
-import io
 import json
 import os
 import re
@@ -102,7 +101,6 @@ def _render_one_date(frozen_date, out_dir):
     import analytics
 
     with freeze_time(f"{frozen_date} 08:00:00"):
-        sys.argv = ["schedule_generator.py", "--no-git"]
         schedule_generator.run()
         analytics.main()
         if frozen_date == min(FROZEN_DATES):

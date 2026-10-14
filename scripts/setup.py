@@ -89,7 +89,7 @@ except Exception as exc:
 
 # ── Step 5: GitHub repo check ─────────────────────────────────────────────────
 import subprocess
-from config import GITHUB_REPO_PATH, DOCS_FOLDER
+from config import GITHUB_REPO_PATH
 
 print("\n  [Optional] Checking GitHub repo …")
 try:
@@ -113,7 +113,6 @@ print(f"""
   • python email_parser.py        — parse new elloha emails
   • python schedule_generator.py  — generate & push HTML schedule
   • python app.py                 — start the manual booking form
-  • python run.py                 — parse emails + generate schedule
 
   For the booking form (for your mother-in-law):
   • Open a browser and go to  http://localhost:5000

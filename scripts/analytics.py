@@ -6,14 +6,13 @@ Run: python analytics.py
 
 import os, sys, io, base64, warnings
 from collections import Counter, defaultdict
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
-import warnings
 warnings.filterwarnings("ignore")
 
 # ── local imports ────────────────────────────────────────────────────────────
@@ -23,54 +22,21 @@ from auth import get_worksheet
 from config import (DOCS_FOLDER, GITHUB_REPO_PATH, ROOMS, COMMISSIONS, BOOKING_GOALS,
                     SOURCE_ALIASES, BREAKFAST_AUTO_SOURCES)
 
-# ── colour themes ─────────────────────────────────────────────────────────────
-# Change THEME to switch the full palette. "P01" or "P03".
-THEME = "P01"
-
-_THEMES = {
-    "P01": {  # L'Ardenne Authentique
-        "brown":      "#4A5D4E",   # Vert Épicéa
-        "secondary":  "#7A8C7E",
-        "accent":     "#D4A373",   # Terre de Sienne
-        "light":      "#C9D5CB",
-        "gold":       "#A8B8AC",
-        "bg":         "#F1EFE7",   # Laine Grège
-        "text":       "#2C2C2C",   # Ardoise Fumée
-        "shadow_rgb": "74,93,78",
-        "rooms":      ["#4A5D4E", "#D4A373", "#C9D5CB", "#E8E2D8"],
-        "sources":    {"Booking.com": "#4A5D4E", "Website": "#D4A373", "Email/phone": "#7A8C7E", "Social Deal": "#A8B8AC", "Expedia": "#C9D5CB", "Umfulana": "#8B6355", "Unknown": "#E8E2D8"},
-        "goal_hit":   "#4A5D4E",
-        "goal_miss":  "#D4A373",
-    },
-    "P03": {  # La Table d'Hôtes
-        "brown":      "#8D5B4C",   # Vieux Bordeaux
-        "secondary":  "#A67C6E",
-        "accent":     "#E6C199",   # Paille Dorée
-        "light":      "#E8D5C0",
-        "gold":       "#C4A882",
-        "bg":         "#FFF8F0",   # Fleur de Lait
-        "text":       "#3E3E3E",   # Bistre
-        "shadow_rgb": "141,91,76",
-        "rooms":      ["#8D5B4C", "#E6C199", "#E8D5C0", "#F5E8D5"],
-        "sources":    {"Booking.com": "#8D5B4C", "Website": "#E6C199", "Email/phone": "#A67C6E", "Social Deal": "#E8D5C0", "Expedia": "#F5E8D5", "Unknown": "#D5C5B0"},
-        "goal_hit":   "#8D5B4C",
-        "goal_miss":  "#E6C199",
-    },
-}
-
-_t            = _THEMES[THEME]
-BROWN         = _t["brown"]
-SECONDARY     = _t["secondary"]
-LIGHT         = _t["light"]
-ACCENT        = _t["accent"]
-GOLD          = _t["gold"]
-BG            = _t["bg"]
-TEXT_COLOR    = _t["text"]
-SHADOW_RGB    = _t["shadow_rgb"]
-ROOMS_COLORS  = _t["rooms"]
-SOURCE_COLORS = _t["sources"]
-GOAL_HIT      = _t["goal_hit"]
-GOAL_MISS     = _t["goal_miss"]
+# ── colours (L'Ardenne Authentique palette) ──────────────────────────────────
+BROWN         = "#4A5D4E"   # Vert Épicéa — main colour
+SECONDARY     = "#7A8C7E"
+ACCENT        = "#D4A373"   # Terre de Sienne
+LIGHT         = "#C9D5CB"
+GOLD          = "#A8B8AC"
+BG            = "#F1EFE7"   # Laine Grège
+TEXT_COLOR    = "#2C2C2C"   # Ardoise Fumée
+SHADOW_RGB    = "74,93,78"
+ROOMS_COLORS  = ["#4A5D4E", "#D4A373", "#C9D5CB", "#E8E2D8"]
+SOURCE_COLORS = {"Booking.com": "#4A5D4E", "Website": "#D4A373", "Email/phone": "#7A8C7E",
+                 "Social Deal": "#A8B8AC", "Expedia": "#C9D5CB", "Umfulana": "#8B6355",
+                 "Unknown": "#E8E2D8"}
+GOAL_HIT      = BROWN
+GOAL_MISS     = ACCENT
 
 plt.rcParams.update({
     "font.family": "sans-serif",
@@ -679,7 +645,7 @@ def chart_table_dhotes(rows):
     tdt = [td_by_month.get(m, 0) for m in months]
     bft = [bf_by_month.get(m, 0)  for m in months]
     fig, ax = plt.subplots(figsize=(11, 4))
-    bars1 = ax.bar(x - w,     tot, w, label="Total réservations", color=LIGHT,    zorder=3)
+    ax.bar(x - w,     tot, w, label="Total réservations", color=LIGHT,    zorder=3)
     bars2 = ax.bar(x,         tdt, w, label="🍽️ Table d'hôtes",  color=BROWN,    zorder=3)
     bars3 = ax.bar(x + w,     bft, w, label="🥐 Petit-déjeuner",  color=ACCENT,   zorder=3)
     ax.bar_label(bars2, padding=3, fontsize=9, fontweight="bold")
@@ -712,44 +678,6 @@ def chart_avg_revenue_per_room(rows):
     ax.grid(axis="y", color=LIGHT, zorder=0)
     ax.set_ylim(0, max(means) * 1.2)
     return _fig_to_b64(fig)
-
-def chart_revenue_rooms_vs_food(rows):
-    """Gross revenue by month, split between room bookings and meal-only bookings."""
-    MONTH_FR = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
-    room_rev = defaultdict(float)
-    food_rev = defaultdict(float)
-    for r in rows:
-        key = (r["arrival"].year, r["arrival"].month)
-        if r["is_meal_only"]:
-            food_rev[key] += r["amount"]
-        else:
-            room_rev[key] += r["amount"]
-    all_keys = sorted(set(list(room_rev.keys()) + list(food_rev.keys())))
-    if not all_keys:
-        return None
-    x          = np.arange(len(all_keys))
-    room_vals  = [room_rev[k] for k in all_keys]
-    food_vals  = [food_rev[k] for k in all_keys]
-    labels     = [f"{MONTH_FR[k[1]-1]} {str(k[0])[2:]}" for k in all_keys]
-    fig, ax    = plt.subplots(figsize=(12, 4))
-    p1 = ax.bar(x, room_vals, label="Hébergement", color=BROWN,  zorder=3)
-    p2 = ax.bar(x, food_vals, bottom=room_vals,    label="Restauration", color=ACCENT, zorder=3)
-    # Label total on top of each stack
-    for xi, (rv, fv) in enumerate(zip(room_vals, food_vals)):
-        total = rv + fv
-        if total > 0:
-            ax.text(xi, total + max(room_vals + food_vals) * 0.015,
-                    f"{total:,.0f}€", ha="center", va="bottom", fontsize=8, color=TEXT_COLOR)
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels, rotation=45, ha="right", fontsize=9)
-    ax.set_title("Revenus bruts — Hébergement vs Restauration")
-    ax.set_ylabel("€ (brut)")
-    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:,.0f} €"))
-    ax.legend(frameon=False)
-    ax.grid(axis="y", color=LIGHT, zorder=0)
-    fig.tight_layout()
-    return _fig_to_b64(fig)
-
 
 # ── KPI cards ─────────────────────────────────────────────────────────────────
 def compute_kpis(rows):
@@ -807,15 +735,6 @@ def compute_kpis(rows):
 # ── HTML builder ──────────────────────────────────────────────────────────────
 def build_html(kpis, charts):
     now = clock.now().strftime("%d/%m/%Y %H:%M")
-
-    def card(b64, title, note=""):
-        note_html = f'<p class="note">{note}</p>' if note else ""
-        return f"""
-        <div class="chart-card">
-            <h3>{title}</h3>
-            <img src="data:image/png;base64,{b64}" alt="{title}">
-            {note_html}
-        </div>"""
 
     kpi_html = "".join(f"""
         <div class="kpi">
