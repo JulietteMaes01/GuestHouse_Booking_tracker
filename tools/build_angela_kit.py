@@ -1,7 +1,8 @@
 """
 Build the zip Juliette sends to Angela: the booking form and nothing else.
 
-    python tools/build_angela_kit.py
+    python tools/build_angela_kit.py         # the zip for Angela (Windows)
+    python tools/build_angela_kit.py --mac   # a Mac copy, to test the kit yourself
 
 Creates "La Ferme de la Cour - Angela.zip" next to the repo. Angela extracts it
 over her existing folder; her creds/ folder (Google login) is never in the zip.
@@ -10,16 +11,19 @@ can't miss a module after the code changes.
 """
 import ast
 import os
+import sys
 import zipfile
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS_DIR = os.path.join(REPO_ROOT, "scripts")
 KIT_FOLDER = "La Ferme de la Cour - Angela"
-ZIP_PATH = os.path.join(os.path.dirname(REPO_ROOT), f"{KIT_FOLDER}.zip")
 REPO_IN_KIT = f"{KIT_FOLDER}/GuestHouse_Booking_tracker"
 
 
 def main():
+    mac = "--mac" in sys.argv
+    zip_path = os.path.join(os.path.dirname(REPO_ROOT),
+                            f"{KIT_FOLDER} (test Mac).zip" if mac else f"{KIT_FOLDER}.zip")
     files = {
         f"{KIT_FOLDER}/start_form.bat": "angela/start_form.bat",
         f"{KIT_FOLDER}/INSTRUCTIONS_ANGELA.md": "angela/INSTRUCTIONS_ANGELA.md",
@@ -29,11 +33,14 @@ def main():
     }
     for module in sorted(form_modules()):
         files[f"{REPO_IN_KIT}/scripts/{module}.py"] = f"scripts/{module}.py"
+    if mac:
+        files[f"{KIT_FOLDER}/start_form.command"] = "angela/start_form.command"
 
-    with zipfile.ZipFile(ZIP_PATH, "w", zipfile.ZIP_DEFLATED) as kit:
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as kit:
         for name_in_zip, repo_path in files.items():
+            # write() keeps the file's permissions, so start_form.command stays runnable
             kit.write(os.path.join(REPO_ROOT, repo_path), name_in_zip)
-    print(f"✓ {ZIP_PATH}")
+    print(f"✓ {zip_path}")
     for name_in_zip in files:
         print(f"    {name_in_zip}")
 

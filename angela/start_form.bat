@@ -27,7 +27,7 @@ if errorlevel 1 (
     echo  Premiere utilisation sur cet ordinateur :
     echo  installation des modules, patientez une minute...
     echo.
-    %PY% -m pip install --user --quiet -r ..\requirements-form.txt
+    %PY% -m pip install --user --quiet --disable-pip-version-check -r ..\requirements-form.txt
     if errorlevel 1 goto install_failed
 )
 
