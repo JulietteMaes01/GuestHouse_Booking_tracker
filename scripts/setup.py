@@ -6,7 +6,7 @@ Log in to Google: the first time, or again when the login has expired
 
     python setup.py
 
-A browser window opens: sign in with lafermedelacour2016@gmail.com and click
+A browser window opens: sign in with contact@lafermedelacour.be and click
 Allow. The script then checks that the Sheet and Gmail can be read.
 """
 import os
@@ -27,7 +27,7 @@ Rename it to credentials.json, put it in the folder above, and run this again.
 (Gmail API and Google Sheets API must be enabled in the same project.)
 """)
 
-    print("Logging in to Google — sign in with lafermedelacour2016@gmail.com and click 'Allow' …")
+    print("Logging in to Google — sign in with contact@lafermedelacour.be and click 'Allow' …")
     from auth import get_gmail_service, get_worksheet
 
     rows = get_worksheet().get_all_values()

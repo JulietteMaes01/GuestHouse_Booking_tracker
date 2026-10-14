@@ -163,7 +163,8 @@ def _screenshot(html_path, png_path, width, query=""):
     while True:
         url = "file://" + html_path.replace(" ", "%20") + query
         subprocess.run(
-            [CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars",
+            # virtual-time-budget: let images load (or fail) before the screenshot
+            [CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars", "--virtual-time-budget=3000",
              "--force-device-scale-factor=1", f"--window-size={width},{height}",
              f"--screenshot={png_path}", url],
             check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,

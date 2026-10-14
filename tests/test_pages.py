@@ -1,6 +1,4 @@
 """Writing pages into docs/."""
-import os
-
 import pytest
 
 import config

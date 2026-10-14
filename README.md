@@ -7,8 +7,8 @@ Keeps the guesthouse bookings in one Google Sheet and publishes the daily schedu
 3. **Sheet → website.** `schedule_generator.py` and `analytics.py` turn the Sheet into the pages at
    **https://juliettemaes01.github.io/GuestHouse_Booking_tracker/**
 
-Steps 1 and 3 run by themselves on GitHub Actions, every 5 minutes during the day and every hour at night
-(`.github/workflows/update_bookings.yml`). Nothing needs to run on a laptop except the form.
+Steps 1 and 3 run by themselves on GitHub Actions every 20 minutes (`.github/workflows/update_bookings.yml`),
+started by cron-job.org (see [Every 20 minutes](#every-20-minutes)). Nothing needs to run on a laptop except the form.
 
 ---
 
@@ -90,6 +90,27 @@ GitHub Actions gets the same two files from the repo secrets `GOOGLE_CREDENTIALS
 
 ---
 
+## Every 20 minutes
+
+GitHub's own timer is unreliable for free repos (it can run hours late), so a free service,
+[cron-job.org](https://cron-job.org), asks GitHub to run the update every 20 minutes.
+GitHub's hourly timer stays as a backup.
+
+The cron-job.org job sends a `POST` to
+`https://api.github.com/repos/JulietteMaes01/GuestHouse_Booking_tracker/actions/workflows/update_bookings.yml/dispatches`
+with body `{"ref":"main"}` and these headers:
+
+```
+Accept: application/vnd.github+json
+Authorization: Bearer <token>
+X-GitHub-Api-Version: 2022-11-28
+```
+
+The token is a GitHub fine-grained token limited to this repository with only
+**Actions: Read and write**. It expires after a year: create a new one and paste it into the cron-job.org job.
+
+---
+
 ## Changing the code safely
 
 ```bash
@@ -114,7 +135,7 @@ python tools/render_and_screenshot.py compare before
 
 | Problem | Fix |
 |---|---|
-| Pages not updating | GitHub → **Actions** tab → open the last red run to see the error |
+| Pages not updating | GitHub → **Actions** tab → open the last red run. No runs at all? Check the job's history on cron-job.org (expired token?) |
 | `credentials.json not found` | Download it from Google Cloud Console (see setup step 2) |
 | Google login expired | Delete `creds/token.pickle`, run `python setup.py`, then update the `GOOGLE_TOKEN_B64` secret |
 | "Access blocked: app not verified" | Google Cloud Console → OAuth consent screen → Test users → add the farm's Gmail address |

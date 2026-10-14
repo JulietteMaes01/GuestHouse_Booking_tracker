@@ -20,12 +20,12 @@ import re
 import socket
 from datetime import date, datetime
 
-from flask import Flask, flash, redirect, render_template, request, url_for
+from flask import Flask, flash, redirect, render_template, request, send_from_directory, url_for
 
 import sheet
 from auth import get_worksheet
 from bookings import TABLE_DHOTES_DATES_TAG
-from config import FORM_SOURCES, MASSAGE_OPTIONS, NATIONALITIES, ROOMS, TEMPLATES_DIR
+from config import DOCS_DIR, FORM_SOURCES, MASSAGE_OPTIONS, NATIONALITIES, ROOMS, TEMPLATES_DIR
 from guests import detect_repeat_guest
 
 PORT = 5051
@@ -38,6 +38,12 @@ log = logging.getLogger(__name__)
 
 app = Flask(__name__, template_folder=TEMPLATES_DIR)
 app.secret_key = os.urandom(24)
+
+
+@app.route("/logo.png")
+def logo():
+    """The farm logo shown at the top of the form (same file as on the website)."""
+    return send_from_directory(DOCS_DIR, "logo.png")
 
 
 # ── New booking (room and meal tabs) ──────────────────────────────────────────

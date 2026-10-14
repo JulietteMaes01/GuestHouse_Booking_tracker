@@ -68,49 +68,7 @@ NATIONALITY_EN_TO_FR = {
     "China": "Chine", "Japan": "Japon", "Australia": "Australie",
 }
 
-NATIONALITY_FLAGS = {
-    "Belgique": "🇧🇪", "France": "🇫🇷", "Pays-Bas": "🇳🇱", "Allemagne": "🇩🇪",
-    "Luxembourg": "🇱🇺", "Royaume-Uni": "🇬🇧", "Espagne": "🇪🇸", "Italie": "🇮🇹",
-    "Suisse": "🇨🇭", "Autriche": "🇦🇹", "Portugal": "🇵🇹", "Irlande": "🇮🇪",
-    "Danemark": "🇩🇰", "Suède": "🇸🇪", "Norvège": "🇳🇴", "Pologne": "🇵🇱",
-    "Hongrie": "🇭🇺", "États-Unis": "🇺🇸",
-}
-
-# ── Phone country code → nationality (French) ─────────────────────────────────
-# Codes are tried longest-first to avoid e.g. 32 matching before 352.
-PHONE_CODE_TO_NATIONALITY = {
-    # 3-digit codes (must be checked before 2-digit)
-    "352": "Luxembourg",
-    "353": "Irlande",
-    "354": "Islande",
-    "358": "Finlande",
-    "370": "Lituanie",
-    "371": "Lettonie",
-    "372": "Estonie",
-    "380": "Ukraine",
-    "385": "Croatie",
-    "386": "Slovénie",
-    "420": "Tchéquie",
-    "421": "Slovaquie",
-    # 2-digit codes
-    "31":  "Pays-Bas",
-    "32":  "Belgique",
-    "33":  "France",
-    "34":  "Espagne",
-    "36":  "Hongrie",
-    "39":  "Italie",
-    "41":  "Suisse",
-    "43":  "Autriche",
-    "44":  "Royaume-Uni",
-    "45":  "Danemark",
-    "46":  "Suède",
-    "47":  "Norvège",
-    "48":  "Pologne",
-    "49":  "Allemagne",
-    "351": "Portugal",
-    # North America
-    "1":   "États-Unis",
-}
+# Phone codes and flags of every country are in countries.py.
 
 # ── Booking sources ───────────────────────────────────────────────────────────
 # Old Sheet rows say "Manual"; they are read as "Email/phone".
