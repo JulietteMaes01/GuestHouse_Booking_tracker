@@ -1,6 +1,6 @@
-{# Arrivals for the next eight calendar weeks, starting next Monday. #}
+{# Arrivals and cabin deliveries for the next eight calendar weeks, starting next Monday. #}
 {% extends "schedule_layout.html" %}
-{% from "_booking_card.html" import booking_card with context %}
+{% from "_booking_card.html" import booking_card, cabin_card with context %}
 {% block title %}La Ferme de la Cour — Semaines prochaines{% endblock %}
 {% block subtitle %}Semaines prochaines{% endblock %}
 {% block content %}
@@ -9,5 +9,6 @@
 {% for b in week.arrivals %}{{ booking_card(b, "arrival") }}{% else %}
 <div class="empty-msg short">Aucune arrivée</div>
 {% endfor %}
+{% for b in week.deliveries %}{{ cabin_card(b) }}{% endfor %}
 {% endfor %}
 {% endblock %}

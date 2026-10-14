@@ -121,7 +121,7 @@ def test_room_booking_row(sheet, client):
         "nationality": "Belgique", "nights": 3, "cancellation_date": "", "modification_date": "",
         "notes": "[TD: 01/12/2026, 03/12/2026] Chien", "repeat_guest": True, "visit_count": 2,
         "table_dhotes": True, "breakfast": True, "guest_count": 3,
-        "massage": "Massage du dos 45min (45€) · Duo",
+        "massage": "Massage du dos 45min (45€) · Duo", "cabane": "", "plats": "",
     }
 
 
@@ -204,3 +204,32 @@ def test_browser_opens_once_the_form_answers(monkeypatch):
     monkeypatch.setattr(form_app.webbrowser, "open", opened.append)
     form_app._open_browser_when_ready()
     assert opened == ["http://localhost:5051"]
+
+
+# ── Cabin tab ─────────────────────────────────────────────────────────────────
+
+@freeze_time("2026-10-14 10:00:00")
+def test_cabin_delivery_row(sheet, client):
+    client.post("/", data={
+        "form_type": "cabin", "cabane": "Tanière des Nutons", "arrival_date": "2026-10-20",
+        "guest_count": "4", "plats": "2 lasagnes\r\n2 tiramisus", "amount": "68", "notes": "Sans noix"})
+
+    row = appended_row(sheet)
+    assert (row["cabane"], row["plats"]) == ("Tanière des Nutons", "2 lasagnes\n2 tiramisus")
+    assert (row["arrival_date"], row["departure_date"], row["nights"]) == ("20/10/2026", "20/10/2026", 0)
+    assert (row["guest_count"], row["amount"], row["notes"]) == (4, 68.0, "Sans noix")
+    assert (row["room1"], row["guest_name"], row["phone"]) == ("", "", "")
+    assert (row["table_dhotes"], row["breakfast"], row["booking_source"]) == (False, False, "Email/phone")
+
+
+def test_cabin_delivery_needs_cabin_dishes_date_and_people(sheet, client):
+    page = client.post("/", data={"form_type": "cabin", "cabane": "Pas une cabane"}).get_data(as_text=True)
+    for message in ("choisir la cabane", "plats à livrer", "nombre de personnes", "date de livraison"):
+        assert message in page
+    assert "nom du client est obligatoire" not in page and "téléphone est obligatoire" not in page
+    assert sheet.writes == []
+
+
+def test_form_lists_the_cabins(client):
+    page = client.get("/?tab=cabin").get_data(as_text=True)
+    assert "Couleurs du monde" in page and 'id="panel-cabin"' in page

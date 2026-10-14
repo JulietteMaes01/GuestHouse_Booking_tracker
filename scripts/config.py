@@ -38,6 +38,17 @@ ROOMS = [
     "Léon de la Cour",
 ]
 
+# Cabins (not run by the farm) where Angela delivers dishes in the evening
+CABINS = [
+    "Bonne aventure",
+    "Ombre et lumière",
+    "Regards croisés",
+    "Tanière des Nutons",
+    "Sens dessus dessous",
+    "Trappes et Cachettes",
+    "Couleurs du monde",
+]
+
 MASSAGE_OPTIONS = [
     "Réflexologie 1h (55€)",
     "3 séances réflexologie (120€)",
@@ -113,4 +124,5 @@ COLUMNS = [
     "guest_name", "phone", "email", "nationality", "nights",
     "cancellation_date", "modification_date", "notes",
     "repeat_guest", "visit_count", "table_dhotes", "breakfast", "guest_count", "massage",
+    "cabane", "plats",
 ]

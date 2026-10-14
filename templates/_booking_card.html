@@ -71,3 +71,33 @@
 {% set look = room_look(rooms) %}
 <span class="room-badge" style="background:{{ look.bg }};color:{{ look.color }};">{{ look.emoji }} {{ rooms | map("replace", " de la Cour", "") | join(" + ") }}</span>
 {% endmacro %}
+
+{# Dishes Angela delivers to a cabin in the evening. #}
+{% macro cabin_card(b) %}
+<div class="card cabin">
+    <span class="badge cabin">🛖 Livraison du soir</span>
+    <div class="guest-name">{{ b.cabin }}
+        {%- for css, text in payment_tags(b) %}{% if not loop.first %} {% endif %}<span class="tag {{ css }}">{{ text }}</span>{% endfor -%}
+    </div>
+    <div class="info-grid">
+    {% if b.guest_name %}
+        <span class="info-label">Client</span><span class="info-value">{{ b.guest_name }}</span>
+    {% endif %}
+        <span class="info-label">Date</span><span class="info-value">{{ b.arrival | sheet_date }}</span>
+        <span class="info-label">Personnes</span><span class="info-value">👥 {{ b.covers }}</span>
+    {% if b.amount %}
+        <span class="info-label">Montant</span><span class="info-value">{{ b.amount_text }} €</span>
+    {% endif %}
+    </div>
+    <div class="action-box dishes">🍲 Plats à livrer :
+        <ul>
+        {% for dish in b.dishes.splitlines() if dish.strip() %}
+            <li>{{ dish }}</li>
+        {% endfor %}
+        </ul>
+    </div>
+    {% if b.notes %}
+    <div class="notes-box">📝 {{ b.notes }}</div>
+    {% endif %}
+</div>
+{% endmacro %}

@@ -3,9 +3,9 @@ schedule_generator.py
 ─────────────────────
 Builds the three day-to-day pages from the Google Sheet:
 
-  docs/index.html     today (rotation, meals, bookings), then the next six days
+  docs/index.html     today (rotation, meals, bookings, cabin deliveries), then the next six days
   docs/weekly.html    this week: numbers, occupancy, room grid, sources
-  docs/upcoming.html  arrivals for the next eight weeks
+  docs/upcoming.html  arrivals and cabin deliveries for the next eight weeks
 
 GitHub Actions runs it and publishes docs/.
 
@@ -48,21 +48,23 @@ def run():
 # ── Pages ─────────────────────────────────────────────────────────────────────
 
 def daily_page(bookings: list[Booking], today: date) -> str:
-    here_today = [b for b in bookings if b.is_present_on(today)]
+    here_today = [b for b in farm_bookings(bookings) if b.is_present_on(today)]
     arriving = [b for b in here_today if b.arrival == today]
     leaving = [b for b in here_today if b.departure == today and b.arrival != today]
     staying = [b for b in here_today if b.arrival != today and b.departure != today]
+    deliveries = cabin_deliveries(bookings, today, today)
 
     return pages.render(
         "index.html",
         **CARD_HELPERS,
         today=today,
         turnover_rooms=sorted(rooms_of(arriving) & rooms_of(leaving)),
-        meals=meals_to_prepare(here_today, today),
+        meals=meals_to_prepare(here_today, deliveries, today),
         today_groups=[
             ("⬆ Arrivées", "arrival", arriving),
             ("⬇ Départs", "departure", leaving),
             ("🏠 En séjour", "staying", staying),
+            ("🛖 Livraisons cabanes", "cabin", deliveries),
         ],
         next_days=[next_day(bookings, today, offset) for offset in range(1, 7)],
     )
@@ -71,23 +73,29 @@ def daily_page(bookings: list[Booking], today: date) -> str:
 def weekly_page(bookings: list[Booking], monday: date) -> str:
     sunday = monday + timedelta(days=6)
     week_days = [monday + timedelta(days=i) for i in range(7)]
-    arriving = [b for b in bookings if b.arrival and monday <= b.arrival <= sunday]
-    leaving = [b for b in bookings if b.departure and monday <= b.departure <= sunday]
+    farm = farm_bookings(bookings)
+    arriving = [b for b in farm if b.arrival and monday <= b.arrival <= sunday]
+    leaving = [b for b in farm if b.departure and monday <= b.departure <= sunday]
     returning = [b for b in arriving if b.is_repeat_guest]
+    deliveries = cabin_deliveries(bookings, monday, sunday)
+
+    stats = [
+        (len(arriving), "Arrivées cette semaine"),
+        (len(leaving), "Départs cette semaine"),
+        (f"{sum(b.amount for b in arriving + deliveries):,.0f} €", "Revenus estimés"),
+        (len(returning), "Clients Fidèles"),
+        (sum(1 for b in arriving if b.has_table_dhotes), "🍽️ Table d'hôtes"),
+        (sum(1 for b in arriving if b.has_breakfast), "🥐 Petit-déjeuner"),
+    ]
+    if deliveries:
+        stats.append((len(deliveries), "🛖 Livraisons cabanes"))
 
     return pages.render(
         "weekly.html",
         week_start=monday,
         week_end=sunday,
         week_days=week_days,
-        stats=[
-            (len(arriving), "Arrivées cette semaine"),
-            (len(leaving), "Départs cette semaine"),
-            (f"{sum(b.amount for b in arriving):,.0f} €", "Revenus estimés"),
-            (len(returning), "Clients Fidèles"),
-            (sum(1 for b in arriving if b.has_table_dhotes), "🍽️ Table d'hôtes"),
-            (sum(1 for b in arriving if b.has_breakfast), "🥐 Petit-déjeuner"),
-        ],
+        stats=stats,
         occupancy=[occupancy(bookings, day) for day in week_days],
         room_grid=[room_grid_row(bookings, room, week_days) for room in ROOMS],
         sources=Counter(b.source for b in arriving).most_common(),
@@ -105,21 +113,32 @@ def upcoming_page(bookings: list[Booking], today: date) -> str:
         weeks.append({
             "start": start,
             "end": end,
-            "arrivals": [b for b in bookings if b.arrival and start <= b.arrival <= end],
+            "arrivals": [b for b in farm_bookings(bookings) if b.arrival and start <= b.arrival <= end],
+            "deliveries": cabin_deliveries(bookings, start, end),
         })
     return pages.render("upcoming.html", **CARD_HELPERS, weeks=weeks)
 
 
 # ── Daily page pieces ─────────────────────────────────────────────────────────
 
+def farm_bookings(bookings: list[Booking]) -> list[Booking]:
+    """Stays and meals at the farm (cabin deliveries are listed on their own)."""
+    return [b for b in bookings if not b.is_cabin_order]
+
+
+def cabin_deliveries(bookings: list[Booking], first_day: date, last_day: date) -> list[Booking]:
+    return [b for b in bookings if b.is_cabin_order and b.arrival and first_day <= b.arrival <= last_day]
+
+
 def rooms_of(bookings: list[Booking]) -> set:
     return {room for b in bookings for room in b.rooms}
 
 
-def meals_to_prepare(here_today: list[Booking], today: date) -> list[dict]:
+def meals_to_prepare(here_today: list[Booking], deliveries: list[Booking], today: date) -> list[dict]:
     """
-    Covers for tonight's table d'hôtes and this morning's breakfast.
-    Guests leaving today skip dinner; room guests arriving today skip breakfast.
+    Covers for tonight's table d'hôtes, this morning's breakfast and tonight's
+    cabin deliveries. Guests leaving today skip dinner; room guests arriving
+    today skip breakfast.
     """
     today_text = today.strftime("%d/%m/%Y")
     dinner = [
@@ -140,6 +159,12 @@ def meals_to_prepare(here_today: list[Booking], today: date) -> list[dict]:
                 "covers": sum(b.covers for b in guests),
                 "who": " + ".join(f"{b.guest_name or '?'} ({b.covers})" for b in guests),
             })
+    if deliveries:
+        meals.append({
+            "label": "🛖 Livraisons cabanes ce soir",
+            "covers": sum(b.covers for b in deliveries),
+            "who": " + ".join(f"{b.cabin} ({b.covers})" for b in deliveries),
+        })
     return meals
 
 
@@ -148,8 +173,9 @@ def next_day(bookings: list[Booking], today: date, offset: int) -> dict:
     return {
         "date": day,
         "label": {1: "⬆ Demain", 2: "⬆ Après-demain"}.get(offset, ""),
-        "arrivals": [b for b in bookings if b.arrival == day],
-        "departures": [b for b in bookings if b.departure == day and b.arrival != day],
+        "arrivals": [b for b in farm_bookings(bookings) if b.arrival == day],
+        "departures": [b for b in farm_bookings(bookings) if b.departure == day and b.arrival != day],
+        "deliveries": cabin_deliveries(bookings, day, day),
     }
 
 
