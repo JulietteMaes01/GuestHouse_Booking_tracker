@@ -1,18 +1,20 @@
 name: Update Bookings & Schedule
 
 on:
+  # cron-job.org starts this every 20 minutes through the GitHub API (see README).
+  # GitHub's own timer is only a backup: on free repos it often runs hours late.
+  workflow_dispatch:
   schedule:
-    - cron: '*/5 6-21 * * *'   # every 5 min, 6am–9:55pm UTC (≈ 7am–11pm Belgian time)
-    - cron: '0 22-23,0-5 * * *' # hourly overnight (10pm–5am UTC)
-  workflow_dispatch:            # also allows manual trigger from GitHub UI
+    - cron: '17 * * * *'
 
 permissions:
   contents: write              # needed to commit docs/ and processed_emails.json back
 
-# Only one run at a time — if a new one is queued while one runs, cancel the waiting one
+# One run at a time. A run that starts while another is busy waits for it,
+# so an update is never cut off halfway through writing to the Sheet.
 concurrency:
   group: update-bookings
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   update:
