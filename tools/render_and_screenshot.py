@@ -22,7 +22,8 @@ import sys
 import tempfile
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SCRIPTS_DIR = os.path.join(REPO_ROOT, "scripts")
+# RENDER_SCRIPTS_DIR renders another copy of the code (e.g. an old commit) for comparison
+SCRIPTS_DIR = os.environ.get("RENDER_SCRIPTS_DIR", os.path.join(REPO_ROOT, "scripts"))
 FIXTURE = os.path.join(REPO_ROOT, "tests", "fixtures", "sheet.json")
 GOLDEN_DIR = os.path.join(REPO_ROOT, "tests", "golden")
 LOGO = os.path.join(REPO_ROOT, "docs", "logo.png")
@@ -85,6 +86,7 @@ def _point_output_to(out_dir):
     """Make the generators write into out_dir instead of the repo's docs/."""
     import config
     config.DOCS_DIR = os.path.join(out_dir, "docs")
+    config.GITHUB_REPO_PATH, config.DOCS_FOLDER = out_dir, "docs"   # names used by older code
 
 
 def _render_one_date(frozen_date, out_dir):
@@ -100,6 +102,7 @@ def _render_one_date(frozen_date, out_dir):
     import analytics
 
     with freeze_time(f"{frozen_date} 08:00:00"):
+        sys.argv = ["schedule_generator.py", "--no-git"]   # older code pushed to git without it
         schedule_generator.run()
         analytics.main()
         if frozen_date == min(FROZEN_DATES):
@@ -156,20 +159,38 @@ def render_all(out_dir):
 
 # ── Screenshots ───────────────────────────────────────────────────────────────
 
+# Chrome never makes its window narrower than this, so phone widths go in an inner frame.
+CHROME_MIN_WIDTH = 500
+
+
+def _phone_frame(html_path, width, height, query):
+    """A page showing html_path in a frame exactly `width` px wide (a real phone viewport)."""
+    frame = html_path + f".frame{width}.html"
+    src = "file://" + html_path.replace(" ", "%20") + query
+    with open(frame, "w", encoding="utf-8") as fh:
+        fh.write(f'<html><body style="margin:0"><iframe src="{src}" width="{width}" '
+                 f'height="{height}" style="border:0;display:block"></iframe></body></html>')
+    return frame
+
+
 def _screenshot(html_path, png_path, width, query=""):
     """Full-page screenshot: grow the window until the bottom is empty background."""
     from PIL import Image
     height = 4000
     while True:
-        url = "file://" + html_path.replace(" ", "%20") + query
+        if width < CHROME_MIN_WIDTH:
+            url = "file://" + _phone_frame(html_path, width, height, query).replace(" ", "%20")
+        else:
+            url = "file://" + html_path.replace(" ", "%20") + query
         subprocess.run(
             # virtual-time-budget: let images load (or fail) before the screenshot
             [CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars", "--virtual-time-budget=3000",
-             "--force-device-scale-factor=1", f"--window-size={width},{height}",
+             "--force-device-scale-factor=1", f"--window-size={max(width, CHROME_MIN_WIDTH)},{height}",
              f"--screenshot={png_path}", url],
             check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
-        image = Image.open(png_path).convert("RGB")
+        image = Image.open(png_path).convert("RGB").crop((0, 0, width, height))
+        image.save(png_path)
         bottom = image.crop((0, height - 40, width, height))
         if len(bottom.getcolors(maxcolors=4) or []) == 1 or height >= 60000:
             return
