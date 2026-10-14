@@ -1,18 +1,17 @@
 """Analytics charts: which sources and meals they count."""
-from datetime import date
-
 import pytest
 
 import analytics
+from bookings import Booking
 from config import COLUMNS
 from fake_sheet import FakeWorksheet
 
 
-def booking(source, status="Confirmed", amount=200.0, nights=2, breakfast=False):
-    return {
-        "source": source, "status": status, "amount": amount, "net_amount": amount,
-        "nights": nights, "arrival": date(2026, 5, 1), "breakfast": breakfast,
-    }
+def booking(source, status="Confirmed"):
+    return Booking.from_row({
+        "booking_source": source, "status": status, "reference": "M0001",
+        "arrival_date": "01/05/2026", "departure_date": "03/05/2026",
+        "amount": "400", "nights": "2"})
 
 
 @pytest.fixture
@@ -45,5 +44,5 @@ def test_umfulana_bookings_include_breakfast(monkeypatch):
         "arrival_date": "01/05/2026", "departure_date": "03/05/2026", "breakfast": ""}])
     monkeypatch.setattr(analytics, "get_worksheet", lambda: worksheet)
 
-    [row] = analytics.load_data()
-    assert row["breakfast"] is True
+    [row] = analytics.load_bookings(worksheet)
+    assert row.has_breakfast is True

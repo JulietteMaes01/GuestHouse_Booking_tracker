@@ -1,0 +1,33 @@
+{# Key numbers on top, then one card per chart. Charts are PNGs embedded in the page. #}
+{% extends "base.html" %}
+{% block title %}La Ferme de la Cour — Analytiques{% endblock %}
+{% block style %}{% include "analytics.css" %}{% endblock %}
+{% block header %}
+<header>
+  <h1>🏡 La Ferme de la Cour — Analytiques</h1>
+  <p>Mis à jour le {{ generated_at.strftime("%d/%m/%Y %H:%M") }}</p>
+</header>
+{% endblock %}
+{% block body %}
+<section class="kpis">
+{% for icon, value, label in kpis %}
+  <div class="kpi">
+    <span class="kpi-icon">{{ icon }}</span>
+    <span class="kpi-val">{{ value }}</span>
+    <span class="kpi-lbl">{{ label }}</span>
+  </div>
+{% endfor %}
+</section>
+<section class="grid">
+{% for chart in charts %}
+  <div class="chart-card{{ ' wide' if chart.wide }}">
+    <h3>{{ chart.title }}</h3>
+    <img src="data:image/png;base64,{{ chart.png }}" alt="{{ chart.title }}">
+    {% if chart.note %}
+    <p class="note">{{ chart.note }}</p>
+    {% endif %}
+  </div>
+{% endfor %}
+</section>
+<footer>La Ferme de la Cour · Généré automatiquement</footer>
+{% endblock %}
