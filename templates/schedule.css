@@ -47,11 +47,13 @@ footer       { text-align: center; color: #A8B8AC; font-size: .78rem;
 .card.arrival   { border-left-color: #D4A373; }
 .card.departure { border-left-color: #8B6355; }
 .card.staying   { border-left-color: #4A5D4E; }
+.card.cabin     { border-left-color: #A0785A; }
 .badge { display: inline-block; padding: 3px 10px; border-radius: 20px;
          font-size: .75rem; font-weight: 700; margin-bottom: 8px; }
 .badge.arrival   { background: #FAF0E6; color: #A0622A; }
 .badge.departure { background: #F5EDEA; color: #6B4033; }
 .badge.staying   { background: #EBF0EC; color: #2C3D30; }
+.badge.cabin     { background: #F3EBE3; color: #6B4A2E; }
 .guest-name  { font-size: 1.15rem; font-weight: 700; margin-bottom: 6px; }
 .tag         { background: #F5EDD8; color: #8B6220; font-size: .72rem;
                padding: 2px 8px; border-radius: 12px; margin-left: 8px; vertical-align: middle; }
@@ -75,6 +77,7 @@ footer       { text-align: center; color: #A8B8AC; font-size: .78rem;
                margin-top: 10px; font-weight: 700; font-size: .85rem; color: #7A4A1E; }
 .action-box.breakfast { background: #FFFDE7; color: #B45309; }
 .action-box.massage   { background: #EDE7F6; color: #512DA8; }
+.action-box.dishes ul { margin: 4px 0 0 20px; }
 
 /* ── Weekly page ───────────────────────────────────────────────────────────── */
 .stat-grid   { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

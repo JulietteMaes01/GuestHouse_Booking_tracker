@@ -9,6 +9,7 @@ Everything is saved straight into the Google Sheet.
 Tabs:
   room    a stay in one or more rooms
   meal    table d'hôtes or breakfast/brunch without a room
+  cabin   dishes delivered to one of the cabins in the evening
   extras  add table d'hôtes, a massage, an amount or a note to an existing booking
   email   replace a Booking.com hidden address with the guest's real email
 """
@@ -18,6 +19,10 @@ import logging
 import os
 import re
 import socket
+import sys
+import threading
+import time
+import webbrowser
 from datetime import date, datetime
 
 from flask import Flask, flash, redirect, render_template, request, send_from_directory, url_for
@@ -25,7 +30,8 @@ from flask import Flask, flash, redirect, render_template, request, send_from_di
 import sheet
 from auth import get_worksheet
 from bookings import TABLE_DHOTES_DATES_TAG
-from config import DOCS_DIR, FORM_SOURCES, MASSAGE_OPTIONS, NATIONALITIES, ROOMS, TEMPLATES_DIR
+from config import (CABINS, DOCS_DIR, FORM_SOURCES, MASSAGE_OPTIONS, NATIONALITIES, ROOMS,
+                    TEMPLATES_DIR)
 from guests import detect_repeat_guest
 
 PORT = 5051
@@ -76,10 +82,13 @@ def booking_form():
         log.error(f"Failed to save booking: {exc}")
         return _render_form_with([f"Erreur lors de l'enregistrement : {exc}"], tab, form)
 
-    log.info(f"Manual booking saved: {row['reference']} — {row['guest_name']}")
-    flash(f"✓ Réservation enregistrée pour {row['guest_name']} "
-          f"({row['arrival_date']} → {row['departure_date']})"
-          + (" — Client fidèle ! 🌟" if row["repeat_guest"] else ""), "success")
+    log.info(f"Manual booking saved: {row['reference']} — {row['guest_name'] or row['cabane']}")
+    if tab == "cabin":
+        flash(f"✓ Livraison enregistrée pour {row['cabane']} ({row['arrival_date']})", "success")
+    else:
+        flash(f"✓ Réservation enregistrée pour {row['guest_name']} "
+              f"({row['arrival_date']} → {row['departure_date']})"
+              + (" — Client fidèle ! 🌟" if row["repeat_guest"] else ""), "success")
     return _back_to(tab)
 
 
@@ -93,13 +102,22 @@ def validation_errors(form, tab: str) -> list[str]:
             errors.append("Veuillez sélectionner au moins un service repas.")
         if not form.get("guest_count", "").strip():
             errors.append("Le nombre de personnes est obligatoire pour un repas.")
-    if not form.get("arrival_date", "").strip():
+    if tab == "cabin":
+        if form.get("cabane", "") not in CABINS:
+            errors.append("Veuillez choisir la cabane.")
+        if not form.get("plats", "").strip():
+            errors.append("Veuillez indiquer les plats à livrer.")
+        if not form.get("guest_count", "").strip():
+            errors.append("Le nombre de personnes est obligatoire pour une livraison.")
+        if not form.get("arrival_date", "").strip():
+            errors.append("La date de livraison est obligatoire.")
+    elif not form.get("arrival_date", "").strip():
         errors.append("La date d'arrivée est obligatoire.")
     if tab == "room" and not form.get("departure_date", "").strip():
         errors.append("La date de départ est obligatoire.")
-    if not form.get("guest_name", "").strip():
+    if tab != "cabin" and not form.get("guest_name", "").strip():
         errors.append("Le nom du client est obligatoire.")
-    if not form.get("phone", "").strip():
+    if tab != "cabin" and not form.get("phone", "").strip():
         errors.append("Le numéro de téléphone est obligatoire.")
 
     if form.get("arrival_date", "").strip() and _departure_text(form, tab):
@@ -115,7 +133,7 @@ def validation_errors(form, tab: str) -> list[str]:
 
 
 def stay_dates(form, tab: str) -> tuple[date, date]:
-    """Arrival and departure; a meal without departure ends the day it starts."""
+    """Arrival and departure; meals and cabin deliveries end the day they start."""
     arrival = datetime.strptime(form["arrival_date"].strip(), FORM_DATE).date()
     departure = datetime.strptime(_departure_text(form, tab), FORM_DATE).date()
     return arrival, departure
@@ -152,6 +170,8 @@ def new_booking_row(form, tab: str, existing: list[dict]) -> dict:
         "breakfast":         _ticked(form, "breakfast") or _ticked(form, "brunch"),
         "guest_count":       max(1, int(guest_count)) if guest_count.isdigit() else "",
         "massage":           massage_choice(form),
+        "cabane":            form.get("cabane", "") if tab == "cabin" else "",
+        "plats":             form.get("plats", "").strip().replace("\r\n", "\n") if tab == "cabin" else "",
     }
     row["repeat_guest"], row["visit_count"] = detect_repeat_guest(row, existing)
     return row
@@ -352,7 +372,7 @@ def _ticked(form, checkbox: str) -> bool:
 
 def _departure_text(form, tab: str) -> str:
     departure = form.get("departure_date", "").strip()
-    return departure or (form.get("arrival_date", "").strip() if tab == "meal" else "")
+    return departure or (form.get("arrival_date", "").strip() if tab in ("meal", "cabin") else "")
 
 
 def _number(text: str) -> float | None:
@@ -370,6 +390,7 @@ def _render_form(active_tab: str, form_data) -> str:
         nationalities=NATIONALITIES,
         form_sources=FORM_SOURCES,
         massage_options=MASSAGE_OPTIONS,
+        cabins=CABINS,
         active_tab=active_tab,
         form_data=form_data,
     )
@@ -383,6 +404,17 @@ def _render_form_with(errors: list[str], tab: str, form) -> str:
 
 def _back_to(tab: str):
     return redirect(url_for("booking_form") + f"?tab={tab}")
+
+
+def _open_browser_when_ready() -> None:
+    """Open the form in the browser as soon as the server answers (at most 30 s)."""
+    for _ in range(60):
+        try:
+            socket.create_connection(("127.0.0.1", PORT), timeout=0.5).close()
+            webbrowser.open(f"http://localhost:{PORT}")
+            return
+        except OSError:
+            time.sleep(0.5)
 
 
 def _local_network_address() -> str:
@@ -401,4 +433,6 @@ if __name__ == "__main__":
     print(f"  → Sur le réseau Wi-Fi : http://{_local_network_address()}:{PORT}")
     print("═" * 50 + "\n")
 
+    if "--open" in sys.argv:    # start_form.bat asks for this
+        threading.Thread(target=_open_browser_when_ready, daemon=True).start()
     app.run(host="0.0.0.0", port=PORT, debug=False)

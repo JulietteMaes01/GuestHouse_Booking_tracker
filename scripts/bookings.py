@@ -57,6 +57,8 @@ class Booking:
     breakfast_booked: bool  # ticked explicitly; see has_breakfast
     guest_count: int        # 0 when not filled in
     massage: str
+    cabin: str              # cabin the dishes are delivered to; '' for farm bookings
+    dishes: str             # dishes to deliver, one per line
 
     @classmethod
     def from_row(cls, row: dict) -> Booking:
@@ -82,6 +84,8 @@ class Booking:
             breakfast_booked=is_yes(row.get("breakfast", "")),
             guest_count=max(0, int(guest_count)),
             massage=str(row.get("massage", "")).strip(),
+            cabin=str(row.get("cabane", "")).strip(),
+            dishes=str(row.get("plats", "")).strip(),
         )
 
     # ── Status ────────────────────────────────────────────────────────────────
@@ -93,6 +97,11 @@ class Booking:
     @property
     def is_meal_only(self) -> bool:
         return not self.rooms
+
+    @property
+    def is_cabin_order(self) -> bool:
+        """Dishes delivered to a cabin, not a stay or a meal at the farm."""
+        return bool(self.cabin)
 
     # ── Dates ─────────────────────────────────────────────────────────────────
 

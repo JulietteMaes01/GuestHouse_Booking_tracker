@@ -53,6 +53,10 @@ python app.py
 
 Then open http://localhost:5051. Other devices on the same Wi-Fi can use the second address it prints.
 
+Tabs: **Chambre** (stays), **Repas seul** (meals without a room), **Cabanes** (evening dishes delivered
+to a cabin; the cabin list is `CABINS` in `config.py`), **Extras** (add to an existing booking),
+**Email** (replace a Booking.com hidden address).
+
 **For Angela (Windows):** build her kit and send it to her:
 
 ```bash

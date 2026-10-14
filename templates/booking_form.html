@@ -40,7 +40,7 @@
   .tabs {
     display: flex;
     background: #2E3D31;
-    overflow: hidden;
+    overflow-x: auto;           /* on a narrow phone the tabs scroll instead of being cut off */
     margin-bottom: 24px;
   }
   .tab-btn {
@@ -170,7 +170,8 @@
 
   @media (max-width: 480px) {
     .date-row { grid-template-columns: 1fr; }
-    .tab-btn  { font-size: .78rem; padding: 12px 4px; }
+    .tab-btn  { font-size: .72rem; padding: 10px 2px; }
+    .tab-icon { display: block; }   /* icon above the word, so all tabs fit on a phone */
   }
 </style>
 </head>
@@ -184,10 +185,11 @@
 
 <!-- ── Tab navigation ─────────────────────────────────────────────────── -->
 <div class="tabs">
-  <button class="tab-btn" id="tab-btn-room"   onclick="switchTab('room')">🛏️ Chambre</button>
-  <button class="tab-btn" id="tab-btn-meal"   onclick="switchTab('meal')">🍽️ Repas seul</button>
-  <button class="tab-btn" id="tab-btn-extras" onclick="switchTab('extras')">➕ Extras</button>
-  <button class="tab-btn" id="tab-btn-email"  onclick="switchTab('email')">✏️ Email</button>
+  <button class="tab-btn" id="tab-btn-room"   onclick="switchTab('room')"><span class="tab-icon">🛏️</span> Chambre</button>
+  <button class="tab-btn" id="tab-btn-meal"   onclick="switchTab('meal')"><span class="tab-icon">🍽️</span> Repas seul</button>
+  <button class="tab-btn" id="tab-btn-cabin"  onclick="switchTab('cabin')"><span class="tab-icon">🛖</span> Cabanes</button>
+  <button class="tab-btn" id="tab-btn-extras" onclick="switchTab('extras')"><span class="tab-icon">➕</span> Extras</button>
+  <button class="tab-btn" id="tab-btn-email"  onclick="switchTab('email')"><span class="tab-icon">✏️</span> Email</button>
 </div>
 
 <div class="container">
@@ -512,6 +514,77 @@
 
 
   <!-- ════════════════════════════════════════════════════════════════════
+       TAB 3 — Dishes delivered to a cabin (evening)
+       ════════════════════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="panel-cabin">
+    <p class="help-text">
+      Plats à livrer le <strong>soir</strong> dans une cabane.
+    </p>
+    <form method="POST" action="/" novalidate>
+      <input type="hidden" name="form_type" value="cabin">
+
+      <div class="form-group">
+        <label for="c_cabane">Cabane <span class="required">*</span></label>
+        <select id="c_cabane" name="cabane" required>
+          <option value="">— Choisir la cabane —</option>
+          {% for cabin in cabins %}
+          <option value="{{ cabin }}"
+            {% if active_tab == 'cabin' and form_data.get('cabane') == cabin %}selected{% endif %}>
+            {{ cabin }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="date-row">
+        <div class="form-group">
+          <label for="c_arrival_date">Date de livraison <span class="required">*</span></label>
+          <input type="date" id="c_arrival_date" name="arrival_date" required
+                 value="{{ form_data.get('arrival_date', '') if active_tab == 'cabin' else '' }}">
+        </div>
+        <div class="form-group">
+          <label for="c_guest_count">Nombre de personnes <span class="required">*</span></label>
+          <input type="number" id="c_guest_count" name="guest_count" min="1" max="50" required
+                 placeholder="ex. 4"
+                 value="{{ form_data.get('guest_count', '') if active_tab == 'cabin' else '' }}">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="c_plats">Plats à livrer <span class="required">*</span></label>
+        <textarea id="c_plats" name="plats" rows="4" required
+                  placeholder="Un plat par ligne, ex.&#10;2 × lasagnes aux légumes&#10;2 × tiramisu">{{ form_data.get('plats', '') if active_tab == 'cabin' else '' }}</textarea>
+      </div>
+
+      <hr class="divider">
+
+      <div class="form-group">
+        <label for="c_guest_name">Nom du client <span class="optional">(facultatif)</span></label>
+        <input type="text" id="c_guest_name" name="guest_name" placeholder="Prénom Nom"
+               value="{{ form_data.get('guest_name', '') if active_tab == 'cabin' else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="c_phone">Téléphone <span class="optional">(facultatif)</span></label>
+        <input type="tel" id="c_phone" name="phone" placeholder="+32 xxx xx xx xx"
+               value="{{ form_data.get('phone', '') if active_tab == 'cabin' else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="c_amount">Montant Total (€) <span class="optional">(facultatif)</span></label>
+        <input type="number" id="c_amount" name="amount" step="0.01" min="0" placeholder="0.00"
+               value="{{ form_data.get('amount', '') if active_tab == 'cabin' else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="c_notes">Notes <span class="optional">(facultatif)</span></label>
+        <textarea id="c_notes" name="notes"
+                  placeholder="Allergies, heure de livraison…">{{ form_data.get('notes', '') if active_tab == 'cabin' else '' }}</textarea>
+      </div>
+
+      <button type="submit">Enregistrer la Livraison</button>
+    </form>
+  </div><!-- /panel-cabin -->
+
+
+  <!-- ════════════════════════════════════════════════════════════════════
        TAB 3 — Update email
        ════════════════════════════════════════════════════════════════════ -->
   <div class="tab-panel" id="panel-email">
@@ -616,7 +689,7 @@
 <script>
   // ── Tab switching ──────────────────────────────────────────────────────
   function switchTab(tab) {
-    ['room', 'meal', 'extras', 'email'].forEach(function(t) {
+    ['room', 'meal', 'cabin', 'extras', 'email'].forEach(function(t) {
       document.getElementById('panel-' + t).classList.toggle('active', t === tab);
       document.getElementById('tab-btn-' + t).classList.toggle('active', t === tab);
     });
@@ -699,7 +772,7 @@
   (function () {
     const params = new URLSearchParams(window.location.search);
     const tab    = params.get('tab') || 'room';
-    switchTab(['room', 'meal', 'extras', 'email'].includes(tab) ? tab : 'room');
+    switchTab(['room', 'meal', 'cabin', 'extras', 'email'].includes(tab) ? tab : 'room');
     updateNights();
   })();
 </script>
