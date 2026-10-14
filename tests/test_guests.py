@@ -33,10 +33,10 @@ def test_english_nationality_gets_french_flag():
 def test_every_way_a_phone_number_is_written():
     assert guests.phone_to_nationality("+33 6 12 34 56 78") == "France"
     assert guests.phone_to_nationality("0049 151 2345 6789") == "Allemagne"
-    assert guests.phone_to_nationality("[supprimé]") == "Belgique"        # code without +
-    assert guests.phone_to_nationality("[supprimé]") == "Belgique"  # extra 0 after the code
+    assert guests.phone_to_nationality("32470123456") == "Belgique"        # code without +
+    assert guests.phone_to_nationality("+32 0470 12 34 56") == "Belgique"  # extra 0 after the code
     assert guests.phone_to_nationality("+0470 12 34 56") == "Belgique"     # website adds + to local numbers
-    assert guests.phone_to_nationality("[supprimé]") == "Belgique"          # Sheet dropped the leading 0
+    assert guests.phone_to_nationality("470123456") == "Belgique"          # Sheet dropped the leading 0
     assert guests.phone_to_nationality("+1 212 555 0100") == "États-Unis"
     assert guests.phone_to_nationality("+1 514 555 0100") == "Canada"
     assert guests.phone_to_nationality("+7 701 123 4567") == "Kazakhstan"
