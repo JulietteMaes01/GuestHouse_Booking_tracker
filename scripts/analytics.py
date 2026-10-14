@@ -78,7 +78,8 @@ def main():
         charts=dashboard_charts(active, bookings),
         colors=PAGE_COLORS,
     )
-    pages.write("analytics.html", html)
+    # Only the "Mis à jour le …" time changed? Keep the old file: no commit for nothing.
+    pages.write("analytics.html", html, unless_only_changed=r"Mis à jour le [^<]*")
 
 
 def counts_in_stats(booking: Booking) -> bool:

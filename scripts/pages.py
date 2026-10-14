@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from datetime import date
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -65,9 +66,19 @@ def render(page: str, **context) -> str:
         page=page, nav_tabs=NAV_TABS, generated_at=clock.now(), **context)
 
 
-def write(page: str, html: str) -> None:
+def write(page: str, html: str, unless_only_changed: str = "") -> None:
+    """
+    Save the page into docs/. With unless_only_changed (a regex), the existing
+    file is kept when that is the only difference, so git sees no change.
+    """
     os.makedirs(config.DOCS_DIR, exist_ok=True)
     path = os.path.join(config.DOCS_DIR, page)
+    if unless_only_changed and os.path.exists(path):
+        with open(path, encoding="utf-8") as fh:
+            current = fh.read()
+        if re.sub(unless_only_changed, "", current) == re.sub(unless_only_changed, "", html):
+            log.info(f"Unchanged → {path}")
+            return
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(html)
     log.info(f"Written → {path}")
