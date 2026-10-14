@@ -269,7 +269,7 @@ def check(label):
 
 
 if __name__ == "__main__":
-    command, *args = sys.argv[1:]
+    command, *args = sys.argv[1:] or ["help"]
     if command == "save":
         save(*args)
     elif command == "compare":
