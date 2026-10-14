@@ -6,8 +6,8 @@
 
 **Double-cliquez sur `start_form.bat`**
 
-Le navigateur s'ouvrira automatiquement après quelques secondes.
-Si la page ne se charge pas tout de suite, attendez 5 secondes et actualisez (touche F5).
+Le navigateur s'ouvre tout seul dès que le formulaire est prêt.
+Si un problème est détecté, la fenêtre noire explique quoi faire.
 
 Remplissez le formulaire et cliquez sur **Enregistrer**.
 La réservation est directement enregistrée dans le tableau Google.
@@ -20,9 +20,21 @@ Pour arrêter le programme : fermez la fenêtre noire intitulée *Formulaire res
 
 | Problème | Que faire |
 |---|---|
-| La page ne s'ouvre pas | Attendez 10 secondes, puis allez sur http://localhost:5051 dans le navigateur |
+| La page ne s'ouvre pas | Lisez le message dans la fenêtre noire (marqué [!]) et suivez-le |
+| Le message ne m'aide pas | Prenez une photo de la fenêtre noire et envoyez-la à Juliette |
 | « Authentication failed » | Contactez Juliette |
 | La réservation ne s'enregistre pas | Vérifiez votre connexion internet, puis contactez Juliette |
+
+---
+
+## Nouvel ordinateur
+
+1. Copiez **tout** le dossier *La Ferme de la Cour - Angela* (avec le dossier `creds` dedans).
+2. Double-cliquez sur `start_form.bat` **dans ce dossier** (pour le bureau, faites un raccourci :
+   clic droit → *Envoyer vers* → *Bureau (créer un raccourci)*).
+3. S'il manque Python, la page de téléchargement s'ouvre : installez-le en **cochant
+   « Add python.exe to PATH »**, puis relancez `start_form.bat`.
+4. La première fois, le reste s'installe tout seul (il faut internet, environ une minute).
 
 ---
 

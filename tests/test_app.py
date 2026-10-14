@@ -196,3 +196,11 @@ def test_form_serves_the_logo(client):
     response = client.get("/logo.png")
     assert response.status_code == 200
     assert response.mimetype == "image/png"
+
+
+def test_browser_opens_once_the_form_answers(monkeypatch):
+    opened = []
+    monkeypatch.setattr(form_app.socket, "create_connection", lambda *a, **k: type("C", (), {"close": lambda self: None})())
+    monkeypatch.setattr(form_app.webbrowser, "open", opened.append)
+    form_app._open_browser_when_ready()
+    assert opened == ["http://localhost:5051"]

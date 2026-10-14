@@ -18,6 +18,10 @@ import logging
 import os
 import re
 import socket
+import sys
+import threading
+import time
+import webbrowser
 from datetime import date, datetime
 
 from flask import Flask, flash, redirect, render_template, request, send_from_directory, url_for
@@ -385,6 +389,17 @@ def _back_to(tab: str):
     return redirect(url_for("booking_form") + f"?tab={tab}")
 
 
+def _open_browser_when_ready() -> None:
+    """Open the form in the browser as soon as the server answers (at most 30 s)."""
+    for _ in range(60):
+        try:
+            socket.create_connection(("127.0.0.1", PORT), timeout=0.5).close()
+            webbrowser.open(f"http://localhost:{PORT}")
+            return
+        except OSError:
+            time.sleep(0.5)
+
+
 def _local_network_address() -> str:
     try:
         return socket.gethostbyname(socket.gethostname())
@@ -401,4 +416,6 @@ if __name__ == "__main__":
     print(f"  → Sur le réseau Wi-Fi : http://{_local_network_address()}:{PORT}")
     print("═" * 50 + "\n")
 
+    if "--open" in sys.argv:    # start_form.bat asks for this
+        threading.Thread(target=_open_browser_when_ready, daemon=True).start()
     app.run(host="0.0.0.0", port=PORT, debug=False)
