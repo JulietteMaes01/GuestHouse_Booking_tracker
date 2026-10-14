@@ -1,3 +1,8 @@
+"""
+Every setting of the booking tracker, in one place.
+
+Change prices, rooms, sources or goals here; the scripts read them from this file.
+"""
 import os as _os
 
 _SCRIPTS_DIR = _os.path.dirname(_os.path.abspath(__file__))          # …/GuestHouse_Booking_tracker/scripts/
@@ -20,9 +25,10 @@ SCOPES = [
 # ── Gmail ─────────────────────────────────────────────────────────────────────
 ELLOHA_SENDER = "no-reply@elloha.com"
 
-# ── GitHub / GitHub Pages ─────────────────────────────────────────────────────
-GITHUB_REPO_PATH = _REPO_ROOT
-DOCS_FOLDER      = "docs"
+# ── Published pages (GitHub Pages serves this folder) ─────────────────────────
+DOCS_DIR      = _os.path.join(_REPO_ROOT, "docs")
+TEMPLATES_DIR = _os.path.join(_REPO_ROOT, "templates")
+OWNER_NAME    = "Juliette Maes"
 
 # ── Guesthouse ────────────────────────────────────────────────────────────────
 ROOMS = [
@@ -49,6 +55,26 @@ NATIONALITIES = [
     "Portugal", "Irlande", "Danemark", "Suède", "Norvège",
     "Pologne", "Hongrie", "États-Unis", "Autre",
 ]
+
+# ── Nationalities ─────────────────────────────────────────────────────────────
+# The Sheet stores nationalities in French. Older rows may be in English.
+NATIONALITY_EN_TO_FR = {
+    "Belgium": "Belgique", "Netherlands": "Pays-Bas", "Germany": "Allemagne",
+    "United Kingdom": "Royaume-Uni", "UK": "Royaume-Uni", "Spain": "Espagne",
+    "Italy": "Italie", "Switzerland": "Suisse", "Austria": "Autriche",
+    "Ireland": "Irlande", "Denmark": "Danemark", "Sweden": "Suède",
+    "Norway": "Norvège", "Poland": "Pologne", "Hungary": "Hongrie",
+    "United States": "États-Unis", "USA": "États-Unis", "Romania": "Roumanie",
+    "China": "Chine", "Japan": "Japon", "Australia": "Australie",
+}
+
+NATIONALITY_FLAGS = {
+    "Belgique": "🇧🇪", "France": "🇫🇷", "Pays-Bas": "🇳🇱", "Allemagne": "🇩🇪",
+    "Luxembourg": "🇱🇺", "Royaume-Uni": "🇬🇧", "Espagne": "🇪🇸", "Italie": "🇮🇹",
+    "Suisse": "🇨🇭", "Autriche": "🇦🇹", "Portugal": "🇵🇹", "Irlande": "🇮🇪",
+    "Danemark": "🇩🇰", "Suède": "🇸🇪", "Norvège": "🇳🇴", "Pologne": "🇵🇱",
+    "Hongrie": "🇭🇺", "États-Unis": "🇺🇸",
+}
 
 # ── Phone country code → nationality (French) ─────────────────────────────────
 # Codes are tried longest-first to avoid e.g. 32 matching before 352.
@@ -86,26 +112,21 @@ PHONE_CODE_TO_NATIONALITY = {
     "1":   "États-Unis",
 }
 
-OWNER_NAME = "Juliette Maes"
-
-# ── Booking source aliases (legacy → current label) ───────────────────────────
-# Applied at data-load time in analytics.py and schedule_generator.py so that
-# old sheet rows with "Manual" are displayed identically to "Email/phone".
+# ── Booking sources ───────────────────────────────────────────────────────────
+# Old Sheet rows say "Manual"; they are read as "Email/phone".
 SOURCE_ALIASES = {
     "Manual": "Email/phone",
 }
 
 # ── Commissions ────────────────────────────────────────────────────────────────
 # Net amount = gross amount × (1 - commission rate)
-# Update BOOKING_COM_COMMISSION once you have the exact rate from your contract.
 COMMISSIONS = {
     "Booking.com":          0.15,   # 15% — update when confirmed
     "Website":              0.00,
     "Expedia":              0.15,   # update when confirmed
     "Social Deal":          0.00,   # update when confirmed
-    "Umfulana": 0.00,   # update when confirmed
+    "Umfulana":             0.00,   # update when confirmed
     "Email/phone":          0.00,
-    "Manual":               0.00,   # legacy label kept for existing sheet rows
 }
 
 # Sources where guests pay fully in advance (show ✅ Payé on schedule)
@@ -116,6 +137,9 @@ SPLIT_PAYMENT_SOURCES = {"Umfulana"}
 
 # Sources that always include breakfast automatically
 BREAKFAST_AUTO_SOURCES = {"Booking.com", "Website", "Umfulana"}
+
+# Sources Angela can pick in the booking form (the others arrive by email)
+FORM_SOURCES = ["Email/phone", "Social Deal", "Umfulana"]
 
 # ── Weekly booking goals (number of confirmed bookings per week) ───────────────
 BOOKING_GOALS = {

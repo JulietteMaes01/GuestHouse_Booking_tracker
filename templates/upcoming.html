@@ -1,0 +1,13 @@
+{# Arrivals for the next eight calendar weeks, starting next Monday. #}
+{% extends "schedule_layout.html" %}
+{% from "_booking_card.html" import booking_card with context %}
+{% block title %}La Ferme de la Cour — Semaines prochaines{% endblock %}
+{% block subtitle %}Semaines prochaines{% endblock %}
+{% block content %}
+{% for week in weeks %}
+<div class="section-title">📆 Semaine +{{ loop.index }} : {{ week.start | short_date }} – {{ week.end | short_date }}</div>
+{% for b in week.arrivals %}{{ booking_card(b, "arrival") }}{% else %}
+<div class="empty-msg short">Aucune arrivée</div>
+{% endfor %}
+{% endfor %}
+{% endblock %}

@@ -19,7 +19,8 @@ warnings.filterwarnings("ignore")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import clock
 from auth import get_worksheet
-from config import (DOCS_FOLDER, GITHUB_REPO_PATH, ROOMS, COMMISSIONS, BOOKING_GOALS,
+import config
+from config import (ROOMS, COMMISSIONS, BOOKING_GOALS,
                     SOURCE_ALIASES, BREAKFAST_AUTO_SOURCES)
 
 # ── colours (L'Ardenne Authentique palette) ──────────────────────────────────
@@ -897,7 +898,7 @@ def main():
 
     html = build_html(kpis, charts)
 
-    out = os.path.join(GITHUB_REPO_PATH, DOCS_FOLDER, "analytics.html")
+    out = os.path.join(config.DOCS_DIR, "analytics.html")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w", encoding="utf-8") as f:
         f.write(html)

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}{% endblock %}</title>
+<style>
+{% block style %}{% endblock %}
+</style>
+</head>
+<body>
+{% block header %}{% endblock %}
+<nav>
+{% for href, label in nav_tabs %}
+  <a href="{{ href }}"{% if href == page %} class="active"{% endif %}>{{ label }}</a>
+{% endfor %}
+</nav>
+{% block body %}{% endblock %}
+</body>
+</html>

@@ -84,8 +84,7 @@ def _snapshot_worksheet():
 def _point_output_to(out_dir):
     """Make the generators write into out_dir instead of the repo's docs/."""
     import config
-    config.GITHUB_REPO_PATH = out_dir
-    config.DOCS_FOLDER = "docs"
+    config.DOCS_DIR = os.path.join(out_dir, "docs")
 
 
 def _render_one_date(frozen_date, out_dir):

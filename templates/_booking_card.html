@@ -1,0 +1,73 @@
+{#
+  One booking card. `kind` is "arrival", "departure" or "staying".
+  The tags after the name and the room pills are written without spaces
+  between them on purpose: a space would show as a gap.
+#}
+{% set BADGES = {"arrival": "⬆ Arrivée", "departure": "⬇ Départ", "staying": "🏠 En séjour"} %}
+{% set ROOM_TODO = {
+    "arrival":   "Préparer la chambre pour l'arrivée des hôtes.",
+    "departure": "C'est leur dernier jour. Prévoir le nettoyage de la chambre.",
+} %}
+
+{% macro booking_card(b, kind) %}
+<div class="card {{ kind }}">
+    <span class="badge {{ kind }}">{{ BADGES[kind] }}</span>
+    <div class="guest-name">{{ b.guest_name or "Hôte" }}
+        {%- if b.is_repeat_guest %}<span class="tag">⭐ Visite {{ b.visit_count_text }}</span>{% endif %}
+        {%- if b.has_table_dhotes %}<span class="tag dinner">🍽️ Table d'hôtes</span>{% endif %}
+        {%- if b.has_breakfast %}<span class="tag breakfast">🥐 Petit-déjeuner</span>{% endif %}
+        {%- if b.massage %}<span class="tag massage">💆 {{ b.massage }}</span>{% endif %}
+        {%- for css, text in payment_tags(b) %}{% if not loop.first %} {% endif %}<span class="tag {{ css }}">{{ text }}</span>{% endfor -%}
+    </div>
+    {% if b.is_meal_only %}
+    <span class="room-badge meal">🍽️ Repas</span>
+    {% else %}
+    {{ room_badge(b.rooms) }}
+    {% endif %}
+    <div class="info-grid">
+    {% if b.nationality %}
+        <span class="info-label">Nationalité</span><span class="info-value">{{ flag_for(b.nationality) }} {{ b.nationality }}</span>
+    {% endif %}
+    {% if b.nights_text == "0" or b.arrival == b.departure %}
+        <span class="info-label">Date</span><span class="info-value">{{ b.arrival | sheet_date }}</span>
+    {% else %}
+        <span class="info-label">Séjour</span><span class="info-value">{{ b.arrival | sheet_date }} → {{ b.departure | sheet_date }} ({{ b.nights_text }} nuit{{ "" if b.nights_text == "1" else "s" }})</span>
+    {% endif %}
+    {% if b.guest_count %}
+        <span class="info-label">Personnes</span><span class="info-value">👥 {{ b.guest_count }}</span>
+    {% endif %}
+    {% if b.source %}
+        <span class="info-label">Source</span><span class="info-value">{{ b.source }}</span>
+    {% endif %}
+    {% if b.amount %}
+        <span class="info-label">Montant</span><span class="info-value">{{ b.amount_text }} €</span>
+    {% endif %}
+    </div>
+    {% if kind in ROOM_TODO and not b.is_meal_only %}
+    <div class="action-box">⚠ {{ ROOM_TODO[kind] }}</div>
+    {% endif %}
+    {% if b.has_table_dhotes and b.table_dhotes_dates %}
+    <div class="action-box">🍽️ Table d'hôtes : soir du {{ b.table_dhotes_dates | join(", ") }}.</div>
+    {% elif b.has_table_dhotes %}
+    <div class="action-box">🍽️ Prévoir le dîner Table d'hôtes pour ce séjour.</div>
+    {% endif %}
+    {% if b.has_breakfast %}
+    <div class="action-box breakfast">🥐 Prévoir le petit-déjeuner pour ce séjour.</div>
+    {% endif %}
+    {% if b.massage %}
+    <div class="action-box massage">💆 Massage réservé : {{ b.massage }} — contacter la masseuse.</div>
+    {% endif %}
+    {% if b.notes_without_dates_tag %}
+    <div class="notes-box">📝 {{ b.notes_without_dates_tag }}</div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{#
+  Single room: its own emoji and colours. Several rooms are shown together in
+  one neutral pill ("🛏 Laurasie + Tibert"), as the schedule always did.
+#}
+{% macro room_badge(rooms) %}
+{% set look = room_look(rooms) %}
+<span class="room-badge" style="background:{{ look.bg }};color:{{ look.color }};">{{ look.emoji }} {{ rooms | map("replace", " de la Cour", "") | join(" + ") }}</span>
+{% endmacro %}

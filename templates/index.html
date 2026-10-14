@@ -1,0 +1,29 @@
+{# Today: rotation and meals first, then today's bookings, then the next six days. #}
+{% extends "schedule_layout.html" %}
+{% from "_booking_card.html" import booking_card with context %}
+{% block title %}La Ferme de la Cour — {{ today | long_date }}{% endblock %}
+{% block subtitle %}{{ today | long_date }}{% endblock %}
+{% block content %}
+{% if turnover_rooms %}
+<div class="rotation-banner">🔄 <strong>Rotation aujourd'hui :</strong> {{ turnover_rooms | join(", ") }}</div>
+{% endif %}
+{% if meals %}
+<div class="meal-summary">
+{% for meal in meals %}{% if not loop.first %}<br>{% endif %}{{ meal.label }} : <strong>{{ meal.covers }} couvert{{ "s" if meal.covers > 1 }}</strong><span class="who">{{ meal.who }}</span>{% endfor %}
+</div>
+{% endif %}
+{% for title, kind, group in today_groups if group %}
+<div class="section-title">{{ title }} ({{ group | length }})</div>
+{% for b in group %}{{ booking_card(b, kind) }}{% endfor %}
+{% else %}
+<div class="empty-msg">🌿 Pas de réservation aujourd'hui — repos bien mérité !</div>
+{% endfor %}
+{% for day in next_days %}
+<div class="section-title">{% if day.label %}{{ day.label }} — {% endif %}{{ day.date | long_date }}</div>
+{% for b in day.arrivals %}{{ booking_card(b, "arrival") }}{% endfor %}
+{% for b in day.departures %}{{ booking_card(b, "departure") }}{% endfor %}
+{% if not day.arrivals and not day.departures %}
+<div class="empty-msg short">Rien de prévu</div>
+{% endif %}
+{% endfor %}
+{% endblock %}

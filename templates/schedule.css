@@ -1,0 +1,107 @@
+:root {
+    --primary:    #4A5D4E;
+    --secondary:  #7A8C7E;
+    --accent:     #D4A373;
+    --text:       #2C2C2C;
+    --bg:         #F1EFE7;
+    --card-bg:    #fff;
+    --shadow:     0 4px 6px rgba(0,0,0,.1);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Tahoma, Verdana, sans-serif;
+       background: var(--bg); color: var(--text); line-height: 1.6; }
+header { background: var(--primary); color: #fff; padding: 20px;
+         text-align: center; border-radius: 0 0 12px 12px; box-shadow: var(--shadow); }
+header img  { max-height: 70px; margin-bottom: 8px; display: block; margin-inline: auto; }
+header h1   { font-size: 1.6rem; }
+header .sub { font-style: italic; font-size: .95rem; opacity: .85; margin-top: 4px; }
+nav          { display: flex; justify-content: center; background: var(--card-bg);
+               border-bottom: 2px solid var(--accent); margin-bottom: 0;
+               overflow-x: auto; -webkit-overflow-scrolling: touch; }
+nav a        { color: var(--secondary); text-decoration: none; padding: 12px 16px;
+               font-weight: 600; font-size: .85rem; border-bottom: 3px solid transparent;
+               margin-bottom: -2px; transition: color .15s; white-space: nowrap; flex-shrink: 0; }
+nav a:hover  { color: var(--primary); }
+nav a.active { color: var(--primary); border-bottom-color: var(--primary); }
+.container  { max-width: 900px; margin: 24px auto; padding: 0 16px; }
+.section-title { color: var(--primary); font-size: .8rem; font-weight: 700;
+                 text-transform: uppercase; letter-spacing: 1.5px;
+                 margin: 28px 0 12px; border-bottom: 2px solid var(--accent); padding-bottom: 4px; }
+.empty-msg       { text-align: center; padding: 48px; color: var(--secondary);
+                   font-style: italic; font-size: 1.1rem; }
+.empty-msg.short { padding: 16px; }
+footer       { text-align: center; color: #A8B8AC; font-size: .78rem;
+               margin: 32px 0 16px; }
+
+/* ── Daily banners ─────────────────────────────────────────────────────────── */
+.rotation-banner { background: #FFF3CD; border: 2px solid #FFC107; border-radius: 10px;
+                   padding: 14px 18px; margin-bottom: 18px; font-size: 1rem; color: #7A4A00; }
+.meal-summary    { background: #F5F0E8; border-radius: 8px; padding: 14px 16px;
+                   margin-bottom: 20px; border-left: 4px solid #D4A373;
+                   font-size: .92rem; color: #3D2B1F; }
+.meal-summary .who { color: #7A8C7E; font-size: .85rem; margin-left: 8px; }
+
+/* ── Booking cards ─────────────────────────────────────────────────────────── */
+.card { background: var(--card-bg); border-radius: 10px; padding: 16px;
+        margin-bottom: 14px; box-shadow: var(--shadow); border-left: 5px solid #ccc; }
+.card.arrival   { border-left-color: #D4A373; }
+.card.departure { border-left-color: #8B6355; }
+.card.staying   { border-left-color: #4A5D4E; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 20px;
+         font-size: .75rem; font-weight: 700; margin-bottom: 8px; }
+.badge.arrival   { background: #FAF0E6; color: #A0622A; }
+.badge.departure { background: #F5EDEA; color: #6B4033; }
+.badge.staying   { background: #EBF0EC; color: #2C3D30; }
+.guest-name  { font-size: 1.15rem; font-weight: 700; margin-bottom: 6px; }
+.tag         { background: #F5EDD8; color: #8B6220; font-size: .72rem;
+               padding: 2px 8px; border-radius: 12px; margin-left: 8px; vertical-align: middle; }
+.tag.dinner    { background: #F5EDD8; color: #7A5020; }
+.tag.breakfast { background: #FFFDE7; color: #F57F17; }
+.tag.massage   { background: #EDE7F6; color: #512DA8; }
+.tag.paid      { background: #E8F5E9; color: #2E7D32; }
+.tag.to-pay    { background: #FFF3E0; color: #E65100; }
+.tag.half-paid { background: #FFF8E1; color: #F57F17; }
+.room-badge  { display: inline-flex; align-items: center; gap: 5px;
+               padding: 5px 14px; border-radius: 20px; font-size: .9rem; font-weight: 700;
+               margin: 6px 4px 10px 0; }
+.room-badge.meal { background: #FFF3E0; color: #E65100; }
+.info-grid   { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px;
+               font-size: .88rem; margin-top: 6px; }
+.info-label  { color: var(--secondary); font-weight: 600; white-space: nowrap; }
+.info-value  { color: var(--text); }
+.notes-box   { background: #F5F0E8; border-radius: 6px; padding: 8px 12px;
+               margin-top: 10px; font-style: italic; font-size: .85rem; color: #4A5D4E; }
+.action-box  { background: #FDF3E8; border-radius: 6px; padding: 8px 12px;
+               margin-top: 10px; font-weight: 700; font-size: .85rem; color: #7A4A1E; }
+.action-box.breakfast { background: #FFFDE7; color: #B45309; }
+.action-box.massage   { background: #EDE7F6; color: #512DA8; }
+
+/* ── Weekly page ───────────────────────────────────────────────────────────── */
+.stat-grid   { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+               gap: 14px; margin-bottom: 20px; }
+.stat-card   { background: var(--card-bg); border-radius: 10px; padding: 16px;
+               box-shadow: var(--shadow); text-align: center; }
+.stat-value  { font-size: 1.8rem; font-weight: 700; color: var(--primary); }
+.stat-label  { font-size: .8rem; color: var(--secondary); margin-top: 4px; }
+table        { width: 100%; border-collapse: collapse; font-size: .88rem; }
+th, td       { padding: 8px 12px; border-bottom: 1px solid #D4C9BC; text-align: left; }
+th           { background: var(--primary); color: #fff; }
+tr:hover     { background: #F1EFE7; }
+.occ-bar     { display: inline-block; height: 8px; background: var(--primary);
+               border-radius: 4px; vertical-align: middle; margin-right: 6px; }
+.room-grid-scroll { overflow-x: auto; }
+.room-grid           { font-size: .82rem; }
+.room-grid th        { text-align: center; font-size: .75rem; padding: 6px 8px; }
+.room-grid th.room   { text-align: left; font-size: inherit; padding: 6px 10px; }
+.room-grid td.room   { font-weight: 600; font-size: .8rem; white-space: nowrap; padding: 6px 10px; }
+.room-grid td.taken  { text-align: center; font-size: .72rem; padding: 5px 3px; font-weight: 600; }
+.room-grid td.free   { background: #EBF5EC; color: #2E7D32; text-align: center;
+                       font-size: .85rem; padding: 5px 3px; }
+.room-grid td.new-guest { border-left: 3px solid #8B6F47; }
+.repeat-list { padding-left: 20px; font-size: .9rem; line-height: 2; }
+
+@media (max-width: 520px) {
+    header h1   { font-size: 1.2rem; }
+    .info-grid  { grid-template-columns: 1fr; }
+    nav a       { padding: 10px 11px; font-size: .78rem; }
+}
