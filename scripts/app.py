@@ -85,6 +85,19 @@ def detect_repeat_guest(new_row: dict, existing_records: list) -> tuple:
     return matches > 0, matches + 1
 
 
+def _render_form(active_tab: str, form_data) -> str:
+    """Render the booking form on the given tab, refilled with form_data."""
+    return render_template(
+        "booking_form.html",
+        rooms=ROOMS,
+        nationalities=NATIONALITIES,
+        manual_sources=MANUAL_SOURCES,
+        massage_options=MASSAGE_OPTIONS,
+        active_tab=active_tab,
+        form_data=form_data,
+    )
+
+
 @app.route("/", methods=["GET", "POST"])
 def booking_form():
     active_tab = request.args.get("tab", "room")
@@ -179,15 +192,7 @@ def booking_form():
         if errors:
             for e in errors:
                 flash(e, "error")
-            return render_template(
-                "booking_form.html",
-                rooms=ROOMS,
-                nationalities=NATIONALITIES,
-                manual_sources=MANUAL_SOURCES,
-                massage_options=MASSAGE_OPTIONS,
-                active_tab=active_tab,
-                form_data=request.form,
-            )
+            return _render_form(active_tab, request.form)
 
         # ── Table d'hôtes date prefix (room, multi-night with specific dates) ──
         if form_type == "room" and table_dhotes and td_dates and nights and nights > 1:
@@ -211,15 +216,7 @@ def booking_form():
         except Exception as exc:
             log.error(f"Failed to connect to Google Sheet: {exc}")
             flash(f"Erreur de connexion au Google Sheet : {exc}", "error")
-            return render_template(
-                "booking_form.html",
-                rooms=ROOMS,
-                nationalities=NATIONALITIES,
-                manual_sources=MANUAL_SOURCES,
-                massage_options=MASSAGE_OPTIONS,
-                active_tab=active_tab,
-                form_data=request.form,
-            )
+            return _render_form(active_tab, request.form)
 
         row = {
             "booking_source":    booking_source,
@@ -273,14 +270,7 @@ def booking_form():
             if conflicts:
                 for c in conflicts:
                     flash(f"⛔ Conflit de réservation : {c}", "error")
-                return render_template(
-                    "booking_form.html",
-                    rooms=ROOMS,
-                    nationalities=NATIONALITIES,
-                    manual_sources=MANUAL_SOURCES,
-                    active_tab=active_tab,
-                    form_data=request.form,
-                )
+                return _render_form(active_tab, request.form)
 
         # ── Repeat-guest detection ────────────────────────────────────────────
         try:
@@ -300,15 +290,7 @@ def booking_form():
             log.error(f"Failed to save booking: {exc}")
             flash(f"Erreur lors de l'enregistrement : {exc}", "error")
 
-    return render_template(
-        "booking_form.html",
-        rooms=ROOMS,
-        nationalities=NATIONALITIES,
-        manual_sources=MANUAL_SOURCES,
-        massage_options=MASSAGE_OPTIONS,
-        active_tab=active_tab,
-        form_data={},
-    )
+    return _render_form(active_tab, {})
 
 
 @app.route("/update-email", methods=["POST"])

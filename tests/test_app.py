@@ -75,3 +75,17 @@ def test_extras_adds_massage(sheet, client):
         "identifier": "U2604160349", "massage_type": "Réflexologie 1h (55€)", "massage_duo": "1"})
 
     assert written_cells(sheet)["massage"] == "Réflexologie 1h (55€) · Duo"
+
+
+# ── Room tab ──────────────────────────────────────────────────────────────────
+
+def test_conflict_page_still_lists_massages(sheet, client):
+    response = client.post("/", data={
+        "form_type": "room", "rooms": "Léon de la Cour",
+        "arrival_date": "2026-11-11", "departure_date": "2026-11-13",
+        "guest_name": "Test", "phone": "0470000000"})
+
+    page = response.get_data(as_text=True)
+    assert "Conflit de réservation" in page
+    assert "Réflexologie 1h (55€)" in page
+    assert not [w for w in sheet.writes if w[0] == "append_row"]
