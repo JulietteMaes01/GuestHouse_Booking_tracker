@@ -69,35 +69,15 @@ SYNTHETIC_ROWS = [
 
 # ── Fake Google Sheet ─────────────────────────────────────────────────────────
 
-class FakeWorksheet:
-    """Serves the snapshot exactly as gspread returned it, and records writes."""
-
-    def __init__(self):
-        with open(FIXTURE, encoding="utf-8") as fh:
-            snapshot = json.load(fh)
-        headers = snapshot["values"][0]
-        self.records = snapshot["records"] + [
-            {col: row.get(col, "") for col in headers} for row in SYNTHETIC_ROWS
-        ]
-        self.values = snapshot["values"] + [
-            [str(row.get(col, "")) for col in headers] for row in SYNTHETIC_ROWS
-        ]
-        self.writes = []
-
-    def get_all_records(self):
-        return [dict(r) for r in self.records]
-
-    def get_all_values(self):
-        return [list(v) for v in self.values]
-
-    def append_row(self, values, value_input_option=None):
-        self.writes.append(("append_row", values))
-
-    def update_cell(self, row, col, value):
-        self.writes.append(("update_cell", row, col, value))
-
-    def batch_update(self, data, value_input_option=None):
-        self.writes.append(("batch_update", data))
+def _snapshot_worksheet():
+    """The Sheet snapshot plus SYNTHETIC_ROWS, served exactly as gspread returned it."""
+    sys.path.insert(0, os.path.join(REPO_ROOT, "tests"))
+    from fake_sheet import FakeWorksheet
+    with open(FIXTURE, encoding="utf-8") as fh:
+        snapshot = json.load(fh)
+    synthetic = FakeWorksheet.from_rows(snapshot["values"][0], SYNTHETIC_ROWS)
+    return FakeWorksheet(snapshot["records"] + synthetic.records,
+                         snapshot["values"] + synthetic.values[1:])
 
 
 # ── Rendering (runs in a fresh subprocess per date) ───────────────────────────
@@ -114,7 +94,7 @@ def _render_one_date(frozen_date, out_dir):
 
     sys.path.insert(0, SCRIPTS_DIR)
     import auth
-    worksheet = FakeWorksheet()
+    worksheet = _snapshot_worksheet()
     auth.get_worksheet = lambda: worksheet
     _point_output_to(out_dir)
     # Import before freezing: pandas' C code breaks if imported under freezegun.

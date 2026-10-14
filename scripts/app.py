@@ -452,9 +452,9 @@ def update_booking():
         row_idx, matched_row = matches[0]
         ref_display = matched_row[ref_col].strip() if ref_col is not None and len(matched_row) > ref_col else identifier
 
-        if td_col is not None:
+        if td_col is not None and table_dhotes:
             ws.update_cell(row_idx, td_col + 1, str(table_dhotes))
-        if massage_col is not None:
+        if massage_col is not None and massage:
             ws.update_cell(row_idx, massage_col + 1, massage)
         if amount_col is not None and amount_str:
             try:
@@ -467,20 +467,15 @@ def update_booking():
             except ValueError:
                 pass
         if notes_col is not None and (td_date_raw or notes_extra):
-            existing = matched_row[notes_col].strip() if len(matched_row) > notes_col else ""
-            # Strip any existing [TD: ...] tag so we can replace it cleanly
-            clean = re.sub(r'\[TD:[^\]]+\]\s*', '', existing).strip()
-            # Build new TD prefix if a specific date was provided
-            td_prefix = ""
+            new_notes = matched_row[notes_col].strip() if len(matched_row) > notes_col else ""
+            # A new table d'hôtes date replaces the existing [TD: ...] tag
             if table_dhotes and td_date_raw:
                 try:
                     td_dt = datetime.strptime(td_date_raw, "%Y-%m-%d")
-                    td_prefix = f"[TD: {td_dt.strftime('%d/%m/%Y')}]"
+                    clean = re.sub(r'\[TD:[^\]]+\]\s*', '', new_notes).strip()
+                    new_notes = f"[TD: {td_dt.strftime('%d/%m/%Y')}] {clean}".strip()
                 except ValueError:
                     pass
-            new_notes = td_prefix
-            if clean:
-                new_notes = (new_notes + " " + clean).strip()
             if notes_extra:
                 new_notes = (new_notes + " | " + notes_extra).strip(" |") if new_notes else notes_extra
             ws.update_cell(row_idx, notes_col + 1, new_notes)
