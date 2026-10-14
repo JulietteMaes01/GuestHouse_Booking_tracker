@@ -95,7 +95,7 @@ def _render_one_date(frozen_date, out_dir):
     worksheet = _snapshot_worksheet()
     auth.get_worksheet = lambda: worksheet
     _point_output_to(out_dir)
-    # Import before freezing: pandas' C code breaks if imported under freezegun.
+    # Import before freezing: numpy's C code breaks if imported under freezegun.
     import schedule_generator
     import analytics
 
