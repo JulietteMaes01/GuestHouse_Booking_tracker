@@ -41,10 +41,12 @@ Pour arrêter le programme : fermez la fenêtre noire intitulée *Formulaire res
 ## Mise à jour (quand Juliette envoie un nouveau fichier .zip)
 
 1. Fermez la fenêtre noire *Formulaire reservations* si elle est ouverte.
-2. Faites un clic droit sur le fichier .zip → **Extraire tout…**
-3. Choisissez le dossier qui contient *La Ferme de la Cour - Angela* et cliquez sur **Extraire**.
-4. Si Windows demande de remplacer des fichiers, choisissez **Remplacer les fichiers**.
-5. Double-cliquez sur `start_form.bat` comme d'habitude.
+2. Clic droit sur le fichier .zip téléchargé → **Propriétés** → cochez **Débloquer** → **OK**
+   (sinon Windows bloque `start_form`).
+3. Clic droit sur le fichier .zip → **Extraire tout…**
+4. Choisissez le dossier qui contient *La Ferme de la Cour - Angela* et cliquez sur **Extraire**.
+5. Si Windows demande de remplacer des fichiers, choisissez **Remplacer les fichiers**.
+6. Double-cliquez sur `start_form.bat` comme d'habitude.
 
 ---
 

@@ -145,7 +145,8 @@ def test_meal_booking_row(sheet, client):
 def test_missing_fields_are_listed_and_nothing_is_saved(sheet, client):
     page = client.post("/", data={"form_type": "room"}).get_data(as_text=True)
     for message in ("au moins une chambre", "date d&#39;arrivée est obligatoire",
-                    "date de départ est obligatoire", "nom du client", "téléphone"):
+                    "date de départ est obligatoire", "nom du client",
+                    "Indiquez au moins le téléphone ou l&#39;email"):
         assert message in page
     assert sheet.writes == []
 
@@ -228,10 +229,19 @@ def test_cabin_delivery_needs_cabin_dishes_date_and_people(sheet, client):
     page = client.post("/", data={"form_type": "cabin", "cabane": "Pas une cabane"}).get_data(as_text=True)
     for message in ("choisir la cabane", "plats à livrer", "nombre de personnes", "date de livraison"):
         assert message in page
-    assert "nom du client est obligatoire" not in page and "téléphone est obligatoire" not in page
+    assert "nom du client est obligatoire" not in page and "téléphone ou l&#39;email" not in page
     assert sheet.writes == []
 
 
 def test_form_lists_the_cabins(client):
     page = client.get("/?tab=cabin").get_data(as_text=True)
     assert "Couleurs du monde" in page and 'id="panel-cabin"' in page
+
+
+@freeze_time("2026-10-14 10:00:00")
+def test_email_alone_is_enough(sheet, client):
+    client.post("/", data={
+        "form_type": "meal", "table_dhotes": "1", "arrival_date": "2026-11-20", "guest_count": "2",
+        "guest_name": "Sans Téléphone", "email": "client@example.com"})
+    row = appended_row(sheet)
+    assert (row["phone"], row["email"]) == ("", "client@example.com")
