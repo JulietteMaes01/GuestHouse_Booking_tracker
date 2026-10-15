@@ -72,3 +72,17 @@ def test_cabin_orders_count_in_revenue_not_in_bookings():
 def test_sources_without_any_amount_are_named():
     rows = [booking("Website"), booking("Social Deal", amount="0")]
     assert analytics._sources_without_amounts(rows) == ["Social Deal"]
+
+
+def test_cabin_numbers_at_the_top():
+    cabins = [booking("Email/phone", cabin="Bonne aventure", amount="60"),
+              booking("Email/phone", cabin="Couleurs du monde", amount="45")]
+    numbers = {label: value for _, value, label in analytics.key_numbers([booking("Website")], cabins)}
+    assert (numbers["Livraisons cabanes"], numbers["Revenus cabanes"]) == ("2", "105 €")
+
+
+def test_cabin_chart_only_when_there_are_orders(monkeypatch):
+    monkeypatch.setattr(analytics, "_fig_to_b64", lambda fig: fig.axes[0])
+    assert analytics.chart_cabin_deliveries([]) is None
+    ax = analytics.chart_cabin_deliveries([booking("Email/phone", cabin="Bonne aventure", amount="60")])
+    assert "1\n60 €" in [t.get_text() for t in ax.texts]

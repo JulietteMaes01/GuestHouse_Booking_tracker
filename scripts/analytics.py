@@ -21,6 +21,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from matplotlib.ticker import MaxNLocator
 import numpy as np
 
 import clock
@@ -134,6 +135,8 @@ def dashboard_charts(rows: list[Booking], rows_with_cancelled: list[Booking],
         # Meals and marketing
         (chart_meals(rows, cabin_orders), "🍽️🥐 Repas par mois",
          f"Petit-déjeuner inclus automatiquement pour {', '.join(sorted(BREAKFAST_AUTO_SOURCES))}.", True),
+        (chart_cabin_deliveries(cabin_orders), "🛖 Livraisons cabanes",
+         "Montants tels qu'encodés dans le formulaire (pas de commission).", True),
         (chart_lead_time_by_month(rows), "Combien de jours à l'avance réserve-t-on selon le mois ?",
          "Utile pour planifier vos campagnes publicitaires", True),
         (chart_booking_day_of_week(rows), "Quel jour réserve-t-on le plus ? (par saison)",
@@ -173,6 +176,8 @@ def key_numbers(rows: list[Booking], cabin_orders: list[Booking]) -> list[tuple[
         ("🥐", f"{sum(1 for r in rows if r.breakfast_booked)}", "Petit-déjeuner (réservé explicitement)"),
         ("👥", f"{np.mean(covers):.1f}" if covers else "—", "Couverts en moyenne"),
         ("💆", f"{sum(1 for r in rows if r.massage)}", "Massages réservés"),
+        ("🛖", f"{len(cabin_orders)}", "Livraisons cabanes"),
+        ("🛖", f"{sum(r.net_amount for r in cabin_orders):,.0f} €", "Revenus cabanes"),
     ]
 
 
@@ -656,6 +661,33 @@ def chart_meals(rows, cabin_orders):
     ax.set_title("Repas par mois")
     ax.set_ylabel("Réservations")
     ax.legend(frameon=False)
+    ax.grid(axis="y", color=LIGHT, zorder=0)
+    return _fig_to_b64(fig)
+
+
+def chart_cabin_deliveries(cabin_orders):
+    """Cabin deliveries per month: number of orders, with the € earned on each bar."""
+    if not cabin_orders:
+        return None
+    MONTH_FR = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
+    orders, euros = Counter(), defaultdict(float)
+    for r in cabin_orders:
+        month = (r.arrival.year, r.arrival.month)
+        orders[month] += 1
+        euros[month] += r.net_amount
+    months = sorted(orders)
+
+    fig, ax = plt.subplots(figsize=(11, 4))
+    x = np.arange(len(months))     # positions, not text: "Sep 26" would be read as a date
+    bars = ax.bar(x, [orders[k] for k in months], color=CABIN_COLOR, width=0.55, zorder=3)
+    ax.bar_label(bars, padding=3, fontsize=10, fontweight="bold",
+                 labels=[f"{orders[k]}\n{euros[k]:,.0f} €" for k in months])
+    ax.set_xticks(x)
+    ax.set_xticklabels([f"{MONTH_FR[m-1]} {str(y)[2:]}" for y, m in months])
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+    ax.set_title("Livraisons cabanes et revenus par mois")
+    ax.set_ylabel("Livraisons")
+    ax.set_ylim(0, max(orders.values()) * 1.45)
     ax.grid(axis="y", color=LIGHT, zorder=0)
     return _fig_to_b64(fig)
 
