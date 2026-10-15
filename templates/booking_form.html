@@ -268,16 +268,16 @@
                value="{{ form_data.get('guest_name', '') if active_tab == 'room' else '' }}">
       </div>
       <div class="form-group">
-        <label for="r_phone">Téléphone <span class="optional">(téléphone ou email, au moins un des deux)</span></label>
-        <input type="tel" id="r_phone" name="phone"
-               placeholder="+32 xxx xx xx xx"
-               value="{{ form_data.get('phone', '') if active_tab == 'room' else '' }}">
-      </div>
-      <div class="form-group">
-        <label for="r_email">Email <span class="optional">(téléphone ou email, au moins un des deux)</span></label>
+        <label for="r_email">Email <span class="optional">(email ou téléphone, au moins un des deux)</span></label>
         <input type="email" id="r_email" name="email"
                placeholder="exemple@email.com"
                value="{{ form_data.get('email', '') if active_tab == 'room' else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="r_phone">Téléphone <span class="optional">(email ou téléphone, au moins un des deux)</span></label>
+        <input type="tel" id="r_phone" name="phone"
+               placeholder="+32 xxx xx xx xx"
+               value="{{ form_data.get('phone', '') if active_tab == 'room' else '' }}">
       </div>
       <div class="form-group">
         <label for="r_nationality">Nationalité <span class="optional">(facultatif)</span></label>
@@ -415,16 +415,16 @@
                value="{{ form_data.get('guest_name', '') if active_tab == 'meal' else '' }}">
       </div>
       <div class="form-group">
-        <label for="m_phone">Téléphone <span class="optional">(téléphone ou email, au moins un des deux)</span></label>
-        <input type="tel" id="m_phone" name="phone"
-               placeholder="+32 xxx xx xx xx"
-               value="{{ form_data.get('phone', '') if active_tab == 'meal' else '' }}">
-      </div>
-      <div class="form-group">
-        <label for="m_email">Email <span class="optional">(téléphone ou email, au moins un des deux)</span></label>
+        <label for="m_email">Email <span class="optional">(email ou téléphone, au moins un des deux)</span></label>
         <input type="email" id="m_email" name="email"
                placeholder="exemple@email.com"
                value="{{ form_data.get('email', '') if active_tab == 'meal' else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="m_phone">Téléphone <span class="optional">(email ou téléphone, au moins un des deux)</span></label>
+        <input type="tel" id="m_phone" name="phone"
+               placeholder="+32 xxx xx xx xx"
+               value="{{ form_data.get('phone', '') if active_tab == 'meal' else '' }}">
       </div>
       <div class="form-group">
         <label for="m_nationality">Nationalité <span class="optional">(facultatif)</span></label>
@@ -564,6 +564,11 @@
         <label for="c_guest_name">Nom du client <span class="optional">(facultatif)</span></label>
         <input type="text" id="c_guest_name" name="guest_name" placeholder="Prénom Nom"
                value="{{ form_data.get('guest_name', '') if active_tab == 'cabin' else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="c_email">Email <span class="optional">(facultatif)</span></label>
+        <input type="email" id="c_email" name="email" placeholder="exemple@email.com"
+               value="{{ form_data.get('email', '') if active_tab == 'cabin' else '' }}">
       </div>
       <div class="form-group">
         <label for="c_phone">Téléphone <span class="optional">(facultatif)</span></label>
