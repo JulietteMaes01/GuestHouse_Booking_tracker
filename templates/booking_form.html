@@ -34,6 +34,7 @@
   header img { max-height: 65px; margin-bottom: 8px; display: block; margin-inline: auto; }
   header h1  { font-size: 1.4rem; }
   header p   { font-size: .9rem; opacity: .85; margin-top: 4px; font-style: italic; }
+  header p.version { font-size: .7rem; opacity: .6; font-style: normal; }
   .container { max-width: 580px; margin: 0 auto; padding: 0 16px; }
 
   /* ── Tabs ─────────────────────────────────────────────────────────────── */
@@ -181,6 +182,7 @@
   <img src="/logo.png" alt="La Ferme de la Cour" onerror="this.style.display='none'">
   <h1>La Ferme de la Cour</h1>
   <p>Gestion des réservations</p>
+  {% if kit_version %}<p class="version">Version du {{ kit_version }}</p>{% endif %}
 </header>
 
 <!-- ── Tab navigation ─────────────────────────────────────────────────── -->

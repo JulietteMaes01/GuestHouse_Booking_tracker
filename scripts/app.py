@@ -35,6 +35,8 @@ from config import (CABINS, DOCS_DIR, FORM_SOURCES, MASSAGE_OPTIONS, NATIONALITI
 from guests import detect_repeat_guest
 
 PORT = 5051
+# Angela's kit carries the date it was built, shown on the form and in the black window
+KIT_VERSION_FILE = os.path.join(os.path.dirname(TEMPLATES_DIR), "version.txt")
 FORM_DATE = "%Y-%m-%d"     # what <input type="date"> sends
 SHEET_DATE = "%d/%m/%Y"
 LOOKS_LIKE_REFERENCE = re.compile(r"^[A-Za-z]\d")   # U2603113069, M0012, …
@@ -393,6 +395,7 @@ def _render_form(active_tab: str, form_data) -> str:
         form_sources=FORM_SOURCES,
         massage_options=MASSAGE_OPTIONS,
         cabins=CABINS,
+        kit_version=kit_version(),
         active_tab=active_tab,
         form_data=form_data,
     )
@@ -406,6 +409,24 @@ def _render_form_with(errors: list[str], tab: str, form) -> str:
 
 def _back_to(tab: str):
     return redirect(url_for("booking_form") + f"?tab={tab}")
+
+
+def kit_version() -> str:
+    """'15/10/2026 09:18' in Angela's kit; '' when running from the repo."""
+    try:
+        with open(KIT_VERSION_FILE, encoding="utf-8") as fh:
+            return fh.read().strip()
+    except OSError:
+        return ""
+
+
+def _form_already_running() -> bool:
+    """True when another copy of the form (maybe an older one) already uses the port."""
+    try:
+        socket.create_connection(("127.0.0.1", PORT), timeout=0.5).close()
+        return True
+    except OSError:
+        return False
 
 
 def _open_browser_when_ready() -> None:
@@ -427,8 +448,15 @@ def _local_network_address() -> str:
 
 
 if __name__ == "__main__":
+    if _form_already_running():
+        print("\n [!] Le formulaire est déjà ouvert dans une autre fenêtre noire")
+        print("     (peut-être une ancienne version). Fermez toutes les fenêtres noires,")
+        print("     ou redémarrez l'ordinateur, puis relancez start_form.\n")
+        sys.exit(1)
     print("\n" + "═" * 50)
     print("  La Ferme de la Cour — Formulaire de Réservation")
+    if kit_version():
+        print(f"  Version du {kit_version()}")
     print("═" * 50)
     print("  Ouvrir dans le navigateur :")
     print(f"  → Sur cet appareil  : http://localhost:{PORT}")

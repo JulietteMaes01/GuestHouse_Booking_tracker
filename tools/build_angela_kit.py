@@ -13,6 +13,7 @@ import ast
 import os
 import sys
 import zipfile
+from datetime import datetime
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS_DIR = os.path.join(REPO_ROOT, "scripts")
@@ -36,11 +37,13 @@ def main():
     if mac:
         files[f"{KIT_FOLDER}/start_form.command"] = "angela/start_form.command"
 
+    version = datetime.now().strftime("%d/%m/%Y %H:%M")
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as kit:
         for name_in_zip, repo_path in files.items():
             # write() keeps the file's permissions, so start_form.command stays runnable
             kit.write(os.path.join(REPO_ROOT, repo_path), name_in_zip)
-    print(f"✓ {zip_path}")
+        kit.writestr(f"{REPO_IN_KIT}/version.txt", version)   # shown on the form
+    print(f"✓ {zip_path}  (version du {version})")
     for name_in_zip in files:
         print(f"    {name_in_zip}")
 

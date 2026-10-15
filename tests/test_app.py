@@ -245,3 +245,15 @@ def test_email_alone_is_enough(sheet, client):
         "guest_name": "Sans Téléphone", "email": "client@example.com"})
     row = appended_row(sheet)
     assert (row["phone"], row["email"]) == ("", "client@example.com")
+
+
+def test_kit_version_is_shown_on_the_form(client, monkeypatch, tmp_path):
+    version_file = tmp_path / "version.txt"
+    version_file.write_text("15/10/2026 14:00", encoding="utf-8")
+    monkeypatch.setattr(form_app, "KIT_VERSION_FILE", str(version_file))
+    assert "Version du 15/10/2026 14:00" in client.get("/").get_data(as_text=True)
+
+
+def test_no_version_line_outside_the_kit(client, monkeypatch, tmp_path):
+    monkeypatch.setattr(form_app, "KIT_VERSION_FILE", str(tmp_path / "missing.txt"))
+    assert "Version du" not in client.get("/").get_data(as_text=True)
