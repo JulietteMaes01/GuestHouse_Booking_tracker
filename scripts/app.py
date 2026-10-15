@@ -119,8 +119,8 @@ def validation_errors(form, tab: str) -> list[str]:
         errors.append("La date de départ est obligatoire.")
     if tab != "cabin" and not form.get("guest_name", "").strip():
         errors.append("Le nom du client est obligatoire.")
-    if tab != "cabin" and not form.get("phone", "").strip():
-        errors.append("Le numéro de téléphone est obligatoire.")
+    if tab != "cabin" and not (form.get("phone", "").strip() or form.get("email", "").strip()):
+        errors.append("Indiquez au moins le téléphone ou l'email du client.")
 
     if form.get("arrival_date", "").strip() and _departure_text(form, tab):
         try:
